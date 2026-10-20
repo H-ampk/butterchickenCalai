@@ -128,7 +128,7 @@ APIの基底URLは `frontend/.env.example` の `VITE_API_BASE_URL` を参照し�
 4. Issue ごとに作業ブランチを作る。
 5. 変更は Pull Request で統合する。
 6. 原則として担当者以外がレビューする。
-7. マージ前に必要なテストを実行する。
+7. マージ前に必要なテストを実行する。`main` 向けの Pull Request では、Frontend CI（TypeScript の型チェックと Vite のビルド）の成功を確認する。CI の成功は全機能の動作保証ではない。
 
 ブランチ名の例:
 
