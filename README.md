@@ -129,6 +129,8 @@ APIの基底URLは `frontend/.env.example` の `VITE_API_BASE_URL` を参照し�
 5. 変更は Pull Request で統合する。
 6. 原則として担当者以外がレビューする。
 7. マージ前に必要なテストを実行する。`main` 向けの Pull Request では、Frontend CI（TypeScript の型チェックと Vite のビルド）の成功を確認する。CI の成功は全機能の動作保証ではない。
+8. Issue は [機能追加・改善](.github/ISSUE_TEMPLATE/feature_request.md) または [バグ報告](.github/ISSUE_TEMPLATE/bug_report.md) のテンプレートを使う。当てはまらない作業は空白の Issue で作成する。
+9. Pull Request は [テンプレート](.github/pull_request_template.md) に沿って書く。
 
 ブランチ名の例:
 
