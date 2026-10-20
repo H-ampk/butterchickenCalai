@@ -64,6 +64,38 @@ h1 {
   color: #57534e;
 }
 
+.shop-section h2 {
+  margin: 1.5rem 0 0;
+  font-size: 1.125rem;
+}
+
+.shop-list {
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.shop-list li {
+  padding: 0.85rem 0;
+  border-top: 1px solid #e7e5e4;
+  overflow-wrap: anywhere;
+}
+
+.shop-name,
+.shop-address,
+.shop-position {
+  margin: 0;
+}
+
+.shop-name {
+  font-weight: 700;
+}
+
+.shop-address,
+.shop-position {
+  color: #57534e;
+}
+
 @media (min-width: 768px) {
   .page {
     padding-top: 4rem;
