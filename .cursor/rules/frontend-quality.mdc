@@ -1,0 +1,23 @@
+---
+description: Vite と Vanilla TypeScript のフロントエンド品質
+globs: frontend/**/*
+alwaysApply: false
+---
+
+# フロントエンド品質
+
+現行構成は Vite と Vanilla TypeScript である。React、Vue、Next.js は未採用であり、前提にしない。
+
+- TypeScript の型を緩めない。エラーを消すための `any` は使わない。
+- 利用者や外部由来の文字列を HTML として挿入しない。店舗名と住所は文字列ノードにする。
+- 入力値と取得データは、空、欠損、件数ゼロ、取得失敗を含めて確認する。
+- 既存の検索、モック店舗一覧、ホームと地図の遷移を維持する。
+- 検索を変えるときは `frontend/scripts` の既存テストを読み、必要なテストを足す。期待値だけを実装へ合わせない。
+- 画面や型を変えたら `npm run build`、検索や `frontend/scripts` を変えたら `npm test` を実行する。未実施なら理由を報告する。
+
+```typescript
+name.textContent = shop.name
+
+// 店舗名を HTML 文字列へ連結しない
+// list.innerHTML += `<li>${shop.name}</li>`
+```
