@@ -15,4 +15,4 @@ alwaysApply: false
 - Critical と High の未解決指摘がないか確認する。誤検知の判断は人間が行い、理由を残す。
 - 最終判断は人間が行う。CodeRabbit の承認だけでマージしない。Frontend CI を無効化しない。
 
-マージと自動マージは禁止する。`.coderabbit.yaml` はマージを強制しない。制限の強制は GitHub Rulesets などの別手段で行う。
+Pull Request の自動マージは禁止する。通常のマージは、人間が対象の PR を明示的に指示した場合に限る。AI のレビューや CI の成功だけではマージしない。`.coderabbit.yaml` はマージを強制しない。制限の強制は GitHub Rulesets などの別手段で行う。
