@@ -48,6 +48,8 @@ API のエンドポイント、認証方式、エラー形式は未確定です�
 .
 ├── CLAUDE.md                 この規約。README の図には未掲載
 ├── REVIEW.md                 レビュー基準。README の図には未掲載
+├── .coderabbit.yaml          CodeRabbit の設定。README の図には未掲載
+├── .cursor/rules/            Cursor Rules。README の図には未掲載
 ├── README.md
 ├── frontend/                 現行のフロントエンド（TypeScript / Vite）
 │   ├── package.json
@@ -73,7 +75,7 @@ API のエンドポイント、認証方式、エラー形式は未確定です�
     └── workflows/frontend-ci.yml
 ```
 
-中身のないディレクトリには `.gitkeep` があります。`backend/` と `database/` の名前は旧設計のままです。Cloudflare Workers と D1 用のディレクトリは、まだ追加していません。ディレクトリの新設は、担当範囲の調整とセットで行い、この規約の追記だけでは行いません。README の図へ `CLAUDE.md`、`REVIEW.md`、`frontend/scripts/` を載せる作業は、この規約とは別です。
+中身のないディレクトリには `.gitkeep` があります。`backend/` と `database/` の名前は旧設計のままです。Cloudflare Workers と D1 用のディレクトリは、まだ追加していません。ディレクトリの新設は、担当範囲の調整とセットで行い、この規約の追記だけでは行いません。README の図へ `CLAUDE.md`、`REVIEW.md`、`.coderabbit.yaml`、`.cursor/rules/`、`frontend/scripts/` を載せる作業は、この規約とは別です。
 
 ## 4. ブランチ運用
 
@@ -84,7 +86,7 @@ API のエンドポイント、認証方式、エラー形式は未確定です�
 - 作業は Issue 単位で行い、Issue ごとに作業ブランチを作る。
 - ブランチ名の例は `feat/home-page`、`fix/login-error`、`docs/update-readme` である。
 - 既存の同名ブランチがある場合は、状態を確認し、既存の作業を上書きしない。
-- 変更の統合は Pull Request で行う。自動マージは禁止する。マージは人間が行い、AI エージェントはマージしない。
+- 変更の統合は Pull Request で行う。自動マージは禁止する。人間の明示的な指示がないマージはしない。
 
 ## 5. IssueとPRの運用
 
@@ -94,7 +96,7 @@ Issue の作り方、`Closes #番号` と `Refs #番号` の使い分け、レ�
 - 既存 Issue の本文、担当者、状態の変更と Close は、その Issue を処理する指示があるときだけ行う。
 - Issue テンプレートの対象領域には、Backend / FastAPI と Database / PostgreSQL が残っている。これは旧設計の名称です。採用予定は Cloudflare Workers と Cloudflare D1 であり、テンプレートの項目は移行が終わった証拠には使いません。
 - 原則として担当者以外がレビューする。高リスクの変更では、担当者以外のレビューと関連テストを原則必須とする。基準は [REVIEW.md](REVIEW.md) です。
-- Pull Request の自動マージは禁止する。AI のレビューコメントや CI の成功は、人間の承認を置き換えません。AI エージェントはマージしない。
+- Pull Request の自動マージは禁止する。AI のレビューコメントや CI の成功は、人間の承認を置き換えません。人間の明示的な指示がないマージはしません。
 - `main` 向けの Pull Request では、Frontend CI の成功を確認する。CI の成功は、型チェックと Vite のビルドが通ったことであり、全機能の動作保証ではない。
 - 画面変更がない Pull Request に、スクリーンショットや E2E テストは不要です。
 
@@ -167,7 +169,7 @@ Frontend CI の定義は [.github/workflows/frontend-ci.yml](.github/workflows/f
 次は、作業指示の範囲が広く見えても守る禁止事項です。
 
 - `main` への直接 push は禁止する。
-- Pull Request の自動マージは禁止する。マージは人間が行う。AI エージェントはマージしない。
+- Pull Request の自動マージは禁止する。人間の明示的な指示がないマージはしない。
 - 指示されていない大規模なリファクタリングは禁止する。
 - API 仕様と DB スキーマの独断変更は禁止する。
 - 秘密情報を、コード、ログ、チャットの報告、テスト出力に出さない。
@@ -177,7 +179,7 @@ Frontend CI の定義は [.github/workflows/frontend-ci.yml](.github/workflows/f
 - セキュリティ上の問題を、軽微に見せて隠さない。
 - ユーザーの明示的な指示なしに、本番環境を変更しない。Cloudflare へのデプロイ、GitHub Rulesets、Secrets の変更も、対象と操作を明示されていない限り行わない。
 - アプリケーションコード、lockfile、GitHub Actions を、ドキュメント作業のついでに変更しない。
-- CodeRabbit の設定ファイルを、採用を指示されていない作業で追加しない。レビュー基準の正本は [REVIEW.md](REVIEW.md) であり、CodeRabbit がこのファイルを自動で読むとは扱わない。
+- CodeRabbit の設定は [.coderabbit.yaml](.coderabbit.yaml) を正とする。指示されていない設定追加、自動承認、自動マージの有効化は禁止する。レビュー基準の正本は [REVIEW.md](REVIEW.md) である。CodeRabbit は Frontend CI の代わりにしない。
 - 既存 Issue を、指示なく削除、改変、Close しない。
 - 未実装の Workers、D1、IndexedDB、Leaflet、認証、通知、デプロイを、実装済みとして文書やコードコメントに書かない。
 

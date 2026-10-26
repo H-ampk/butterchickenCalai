@@ -1,0 +1,58 @@
+# CodeRabbit configuration reference (2026-10-23 schema):
+# https://docs.coderabbit.ai/reference/configuration
+# 採用予定の Cloudflare Workers と D1 用ディレクトリは未作成。
+# ディレクトリ追加時に reviews.path_instructions へ path を足す。
+language: ja-JP
+enable_free_tier: true
+tone_instructions: "具体的な問題と影響を書く。重要度は REVIEW.md の Critical、High、Medium、Low を使い、CodeRabbit の merge risk や security risk と同じ分類として扱わない。承認とマージはしない。"
+reviews:
+  profile: chill
+  high_level_summary: true
+  poem: false
+  auto_approvals:
+    enabled: false
+  auto_review:
+    enabled: true
+    drafts: false
+  path_instructions:
+    - path: "frontend/src/**"
+      instructions: |
+        正本は REVIEW.md。現行構成は Vite と Vanilla TypeScript であり、React や Vue は未採用。
+        TypeScript の型を緩めたり any でエラーを消したりしていないか見る。
+        XSS、入力値検証、既存の検索と店舗一覧の破壊、非同期処理の失敗と画面離脱後の結果を見る。
+        frontend/src/api/main.py はメモリ上の FastAPI 試作であり、Cloudflare Workers でも D1 でもない。
+        指摘には重要度（Critical、High、Medium、Low）、問題箇所、発生条件、影響、修正方針を書く。
+    - path: "frontend/scripts/**"
+      instructions: |
+        正本は REVIEW.md。テストが境界値と異常系を見ているか確認する。
+        既存の期待値を、実装に合わせるためだけに変えていないか見る。
+        指摘には重要度（Critical、High、Medium、Low）、問題箇所、発生条件、影響、修正方針を書く。
+    - path: ".github/workflows/**"
+      instructions: |
+        正本は REVIEW.md の高リスク基準。GitHub Actions の権限、Secrets、危険なイベントトリガー、外部 Action の信頼、意図しないデプロイや書き込み権限を見る。
+        現行の Frontend CI は型チェックと Vite のビルドのみで、デプロイジョブはない。この確認は CI の代替ではない。
+        指摘には重要度（Critical、High、Medium、Low）、問題箇所、発生条件、影響、修正方針を書く。
+    - path: "docs/**"
+      instructions: |
+        現行の実装、採用予定、旧設計、未決定を混同していないか見る。未実装機能を実装済みと書いていないか確認する。
+        Cloudflare Workers と D1 は採用予定であり未実装。設計方針とセキュリティ要件の欠落、文書間の矛盾を指摘する。
+        指摘には重要度（Critical、High、Medium、Low）、問題箇所、発生条件、影響、修正方針を書く。
+    - path: "*.md"
+      instructions: |
+        ルートの Markdown を、現行の実装と設計方針に照らして見る。未実装機能の誤記、文書間の矛盾、セキュリティ要件の欠落を指摘する。
+        Cloudflare Workers と D1 は採用予定であり未実装。
+        指摘には重要度（Critical、High、Medium、Low）、問題箇所、発生条件、影響、修正方針を書く。
+knowledge_base:
+  code_guidelines:
+    enabled: true
+    filePatterns:
+      - files: "REVIEW.md"
+        applyTo: "**"
+      - files: ".cursor/rules/project-governance.mdc"
+        applyTo: "**"
+      - files: ".cursor/rules/frontend-quality.mdc"
+        applyTo: "frontend/**"
+      - files: ".cursor/rules/security-review.mdc"
+        applyTo: "**"
+      - files: ".cursor/rules/pull-request-workflow.mdc"
+        applyTo: "**"
