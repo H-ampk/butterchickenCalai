@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name ="viewport" content=""width=device-width, initial-scale="1.0">
+  <title>まちトク｜ホーム</title>
+   <link rel="stylesheet" href="hinalab.css">
+</head>
+<body>
+    <header class="header">
+        <h1>まちトク</h1>
+        <p>近くのお得を見つけよう！</p>
+    </header>
+
+    <main class="main-container">
+        <!--検索欄-->
+        <section class="search-section">
+            <input 
+            type="text" 
+            placeholder="お店・割引を検索"
+            aria-label="お店・商品を検索"
+            >
+            <button type="button">検索</button>
+        </section>
+        <!--割引商品の一覧-->
+        <section class="discount-section">
+            <h2>今日のおすすめ割引</h2>
+
+            <div class="product-list">
+                <!--商品カード-->
+                <article class="product-card">
+                    <a href="shop-detail.html" class="product-link">
+                        <img
+                        src="images/latte.jpg"
+                        alt="アイスカフェラテ"
+                        class="product-image"
+                        >
+
+                        <div class="product-info">
+                            <p class="shop-name">まちかどカフェ</p>
+                            <h3>アイスカフェラテ</h3>
+
+                            <p class="normal-price">
+                                通常 500円
+                            </p>
+                            <p class="discount-price">300円</p>
+                            <spanclass="discount-label">40％OFF </spanclass>
+                        </div>    
+                    </a>
+                </article>
+                <!--商品カード2-->
+                <article class="product-card">
+                    <a href="shop-detail.html" class="product-link">
+                        <img
+                        src="images/lunch.jpg"
+                        alt="日替わりランチ"
+                        class="product-image"
+                        >
+
+                        <div class="product-info">
+                            <p class="shop-name">まちの食堂</p>
+                            <h3>日替わりランチ</h3>
+
+                            <p class="discount-price">700円</p>
+                            <span class="discount-label">100円引き</span>
+                        </div>
+                    </a>
+                </article>
+
+                <!--商品カード3-->
+                <article class="product-card">
+                    <a href="shop-detail.html" class="product-link">
+                        <img
+                        src="images/cake.jpg"
+                        alt="いちごケーキ"
+                        class="product-image"
+                        >
+
+                        <div class="product-info">
+                            <p class="shop-name">街のケーキ屋さん</p>
+                            <h3>いちごケーキ</h3>
+
+                            <p class="normal-price">
+                                通常 600円
+                            </p>
+
+                            <p class="discount-price">480円</p>
+                            <span class="discount-label">20% OFF</span>
+                        </div>
+                    </a>
+                </article>
+
+             </div>
+        </section>
+    </main>
+    
+    <!--下部メニュー-->
+    <nav class="bottom-menu" aria-label="メインメニュー">
+        <a href="HINALAB.html">ホーム</a>
+        <a href="map.html">地図</a>
+        <a href="post.html">投稿</a>
+        <a href="favorites.html">お気に入り</a>
+    </nav>
+    
+</body>
+</html>
