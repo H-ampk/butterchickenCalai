@@ -15,7 +15,7 @@ Browser
    |
    v
 frontend/
-Vite + Vanilla TypeScript
+Vite + React + TypeScript
 （開発サーバー、または vite build の静的ファイル）
 
 GitHub Actions
@@ -27,7 +27,7 @@ Frontend CI
 
 ブラウザ向けには、ホームと地図の画面枠があります。地図ライブラリは未導入で、地図領域はプレースホルダです。店舗一覧は開発用のモックデータで、API へは通信しません。IndexedDB と Cloudflare へのデプロイは、`main` にはありません。Frontend CI の定義は [.github/workflows/frontend-ci.yml](../.github/workflows/frontend-ci.yml) です。この CI は TypeScript の型チェックと Vite のビルドだけを行い、Python は実行しません。
 
-`main` には、これとは別に FastAPI の試作が [frontend/src/api/main.py](../frontend/src/api/main.py) にあります。`GET /` は起動メッセージを返し、`GET /discounts` はメモリ上のサンプル割引を返し、`POST /discounts` は受け取った割引をその配列へ追加します。PostgreSQL にも D1 にも接続せず、認証もありません。CORS は全オリジンを許可しています。Python の依存関係を定義するファイルは無く、フロントエンドの `main.ts` からも呼ばれていません。採用予定の Workers API ではありません。
+`main` には、これとは別に FastAPI の試作が [frontend/src/api/main.py](../frontend/src/api/main.py) にあります。`GET /` は起動メッセージを返し、`GET /discounts` はメモリ上のサンプル割引を返し、`POST /discounts` は受け取った割引をその配列へ追加します。PostgreSQL にも D1 にも接続せず、認証もありません。CORS は全オリジンを許可しています。Python の依存関係を定義するファイルは無く、フロントエンドの `main.tsx` からも呼ばれていません。採用予定の Workers API ではありません。
 
 ```text
 frontend/src/api/main.py
@@ -66,7 +66,7 @@ Browser
            +-- Favorite Shop IDs
 ```
 
-利用者のブラウザは、HTTPS で Cloudflare Workers に接続します。Workers は、Vite のビルド結果（HTML、CSS、TypeScript から生成した JavaScript）と、API を配信します。店舗や割引情報などの共有データは、API の先にある Cloudflare D1 で管理します。お気に入りの店舗 ID は、ブラウザ内の IndexedDB に置きます。
+利用者のブラウザは、HTTPS で Cloudflare Workers に接続します。Workers は、Vite のビルド結果（HTML、CSS、React と TypeScript から生成した JavaScript）と、API を配信します。店舗や割引情報などの共有データは、API の先にある Cloudflare D1 で管理します。お気に入りの店舗 ID は、ブラウザ内の IndexedDB に置きます。
 
 ## 旧設計
 
@@ -95,7 +95,7 @@ PostgreSQL
 
 | 技術 | 区分 | 責務 |
 | --- | --- | --- |
-| HTML / CSS / TypeScript | 現行の実装を維持 | 画面表示と利用者の操作 |
+| HTML / CSS / TypeScript / React | 現行の実装を維持 | 画面表示と利用者の操作。画面遷移に React Router は未使用 |
 | Vite | 現行の実装 | 開発サーバーと本番ビルド |
 | Cloudflare Workers（Static Assets） | 採用予定 | ビルド済み静的ファイルの配信 |
 | Cloudflare Workers（API） | 採用予定 | 共有データの参照と更新、認証・認可、入力検証 |

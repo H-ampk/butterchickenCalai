@@ -10,7 +10,7 @@
 
 地域割引SNSアプリ「バターチキンカレー」は、近くのお得を SNS 感覚で見つける Web アプリケーションです。地域の店舗が割引情報を発信し、一般ユーザーが投稿、検索、地図から割引を見つける想定です。
 
-現在の `main` は、チーム開発を始めるための初期構成です。入っているのは、Vite と Vanilla TypeScript のフロントエンド、ホームと地図の画面枠、開発用のモック店舗一覧、メモリ上の割引データを返す FastAPI の試作、Frontend CI、共同開発用の文書です。割引投稿の本実装、地図ライブラリ、ユーザー登録、データベースへの保存は、これからです。
+現在の `main` は、チーム開発を始めるための初期構成です。入っているのは、Vite、React、TypeScript のフロントエンド、ホームと地図の画面枠、開発用のモック店舗一覧、メモリ上の割引データを返す FastAPI の試作、Frontend CI、共同開発用の文書です。割引投稿の本実装、地図ライブラリ、ユーザー登録、データベースへの保存は、これからです。画面の切り替えは React の state で行い、React Router は入れていません。
 
 想定する利用者は、割引情報を探す一般ユーザーと、割引情報を発信する地域の店舗です。一般公開を見据えています。初期の運用は、大学サーバーのポート開放に依存せず、Cloudflare の無料枠に収める方針です。Cloudflare の環境構築、デプロイ、大学側の利用許可は終わっていません。
 
@@ -20,7 +20,7 @@
 
 | 区分 | 意味 | このリポジトリでの例 |
 | --- | --- | --- |
-| 現行の実装 | `main` に入っているもの | Vite、Vanilla TypeScript、モック店舗一覧、Frontend CI、`frontend/src/api/main.py` のメモリ上の試作 |
+| 現行の実装 | `main` に入っているもの | Vite、React、TypeScript、モック店舗一覧、Frontend CI、`frontend/src/api/main.py` のメモリ上の試作 |
 | 採用予定 | 方針は決まっている。環境も実装も未了 | Cloudflare Workers、Cloudflare D1、IndexedDB、Leaflet / OpenStreetMap、GitHub Actions からのデプロイ |
 | 旧設計 | 文書と Issue が前提にしていた構成。本実装は未了 | `backend/` の FastAPI、PostgreSQL。Issue テンプレートの対象領域もこの区分の名称のまま |
 | 将来実装 | 項目だけで、方式は未決定のものが多い | いいね、コメント、AI による割引情報抽出、割引率などの検索、おすすめ、通知 |
@@ -30,7 +30,7 @@ Cloudflare Workers と Cloudflare D1 は採用予定です。アカウント、W
 
 `frontend/src/api/main.py` は FastAPI の試作です。割引データはプロセス内の配列にあり、再起動で消えます。PostgreSQL にも D1 にも接続せず、認証もありません。採用予定の Workers API ではありません。`backend/` の基本環境と Python の依存関係定義は未実装です。
 
-フロントエンドの UI フレームワークは未選定です。チームで合意するまで、Vite と Vanilla TypeScript を維持してください。React、Vue、Next.js などへ移す変更は、指示と合意がない限り行わないでください。
+フロントエンドの UI は React です。画面の切り替えは React の state で行い、React Router は入れていません。Vue、Next.js、別の UI フレームワークへの移行と、React Router の追加は、指示がない限り行わないでください。
 
 API のエンドポイント、認証方式、エラー形式は未確定です。[docs/api-contract.md](docs/api-contract.md) は、パスをチームの合意まで確定しないと定めています。`main.py` の `GET /discounts` と `POST /discounts` を、合意済みの仕様として扱わないでください。同文書にある「FastAPI のスキーマと TypeScript の型を揃える」は旧設計の記載です。Workers への移行が終わったという意味には読みません。
 
@@ -51,14 +51,15 @@ API のエンドポイント、認証方式、エラー形式は未確定です�
 ├── .coderabbit.yaml          CodeRabbit の設定。README の図には未掲載
 ├── .cursor/rules/            Cursor Rules。README の図には未掲載
 ├── README.md
-├── frontend/                 現行のフロントエンド（TypeScript / Vite）
+├── frontend/                 現行のフロントエンド（React / TypeScript / Vite）
 │   ├── package.json
 │   ├── scripts/              node:test。README の図には未掲載。Frontend CI は未実行
 │   └── src/
-│       ├── main.ts
+│       ├── main.tsx
+│       ├── App.tsx           ホームと地図の切り替え
 │       ├── style.css
 │       ├── components/       .gitkeep のみ
-│       ├── pages/            ホームと地図の画面枠
+│       ├── pages/            HomePage.tsx と MapPage.tsx
 │       ├── api/              モック店舗と、FastAPI 試作の main.py
 │       ├── types/
 │       ├── utils/
@@ -108,7 +109,7 @@ Issue の作り方、`Closes #番号` と `Refs #番号` の使い分け、レ�
 - インデントはスペース。幅は 2。Python は 4。
 - Markdown 以外では、行末の空白を残さない。
 
-TypeScript は、`frontend/src` の既存ファイルに合わせます。UI フレームワークは足しません。地図ライブラリは、地図機能の実装指示があるまで `frontend/package.json` に足しません。
+TypeScript と React は、`frontend/src` の既存ファイルに合わせます。UI フレームワークを React 以外へ置き換えません。React Router と地図ライブラリは、実装指示があるまで `frontend/package.json` に足しません。
 
 - 変更前に、関連する実装、README、`docs/` の該当箇所、関連 Issue を読む。
 - 作業単位は小さくする。指示されていない大規模なリファクタリングは禁止する。

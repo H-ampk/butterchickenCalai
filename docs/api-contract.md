@@ -63,7 +63,7 @@ export interface Shop {
 
 [frontend/src/api/shops.ts](../frontend/src/api/shops.ts) の `getShops()` は、このモックのコピーを返します。戻り値の型は `Promise<Shop[]>` です。画面は `getShops()` だけを使い、モック配列を直接参照しません。この関数は API へ通信しません。切り替えは、仕様の合意後にこの関数の内部で行います。この草案では、そのコードを変えません。
 
-地図画面 [frontend/src/pages/map.ts](../frontend/src/pages/map.ts) は、`name`、`address`、`latitude`、`longitude` を表示します。
+地図画面 [frontend/src/pages/MapPage.tsx](../frontend/src/pages/MapPage.tsx) は、`name`、`address`、`latitude`、`longitude` を表示します。
 
 ### 検索が参照する項目
 
@@ -75,7 +75,7 @@ export interface Shop {
 
 ### 割引の試作
 
-[frontend/src/api/main.py](../frontend/src/api/main.py) は、FastAPI の試作です。割引の配列をプロセスのメモリに持っています。D1 にも PostgreSQL にも接続せず、認証もありません。フロントエンドの `main.ts` からは呼ばれていません。採用予定の Workers API ではありません。
+[frontend/src/api/main.py](../frontend/src/api/main.py) は、FastAPI の試作です。割引の配列をプロセスのメモリに持っています。D1 にも PostgreSQL にも接続せず、認証もありません。フロントエンドの `main.tsx` からは呼ばれていません。採用予定の Workers API ではありません。
 
 試作が持つ項目は、数値の `id`、`shop_name`、`content`、`tags`、`latitude`、`longitude` です。`GET /discounts` と `POST /discounts` があります。このパスと項目は、合意済みの仕様ではありません。この草案の候補と形が似ていても、試作を仕様として採用しません。
 
@@ -87,7 +87,7 @@ export interface Shop {
 - `frontend/src/api/mockShops.ts`
 - `frontend/src/api/shops.ts`
 - `frontend/src/utils/shopSearch.ts`
-- `frontend/src/pages/map.ts`
+- `frontend/src/pages/MapPage.tsx`
 - `frontend/scripts/check-shops.ts`
 - `frontend/scripts/check-shop-search.ts`
 
