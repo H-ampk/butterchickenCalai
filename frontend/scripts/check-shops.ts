@@ -1,8 +1,13 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { runWithEnvLock } from './lib/env-lock.ts'
 import { getShops } from '../src/api/shops.ts'
 
 test('getShops returns five unique Hiroshima shops without sharing the source array', async () => {
+  await runWithEnvLock(() => assertMockShops())
+})
+
+async function assertMockShops(): Promise<void> {
   const shops = await getShops()
   assert.equal(shops.length, 5)
   assert.equal(new Set(shops.map((shop) => shop.id)).size, 5)
@@ -24,4 +29,4 @@ test('getShops returns five unique Hiroshima shops without sharing the source ar
   const again = await getShops()
   assert.equal(again.length, 5)
   assert.notEqual(again[0]?.name, '変更')
-})
+}
