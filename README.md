@@ -35,13 +35,13 @@
 
 ## 使用技術
 
-フロントエンドの現行構成は Vite と Vanilla TypeScript です。UIフレームワーク（React、Vue、Next.js など）は未選定です。チームで合意するまで、この構成を維持します。
+フロントエンドの現行構成は Vite、React、TypeScript です。画面の切り替えは React の state で行い、React Router は入れていません。Vue と Next.js は採用していません。
 
 次の表は、採用予定と、リポジトリ上の状態を分けたものです。Cloudflare の行は方針であり、アカウント、Workers、D1 は作成していません。
 
 | 分野 | 技術 | 状態 |
 | --- | --- | --- |
-| フロントエンド | HTML / CSS / TypeScript | 現行。Vite の Vanilla TypeScript |
+| フロントエンド | HTML / CSS / TypeScript / React | 現行。Vite と React。画面遷移に React Router は未使用 |
 | ビルド | Vite | 現行。`frontend/package.json` の `build` は `tsc` と `vite build` |
 | ホスティング | Cloudflare Workers（Static Assets） | 採用予定。環境未構築 |
 | API | Cloudflare Workers | 採用予定。未実装 |
@@ -119,10 +119,11 @@ GitHub Actions による Cloudflare への自動デプロイは、今後整備�
 │   ├── .gitignore
 │   ├── public/
 │   └── src/
-│       ├── main.ts
+│       ├── main.tsx
+│       ├── App.tsx
 │       ├── style.css
 │       ├── components/       再利用するUI部品
-│       ├── pages/            ホーム、地図、検索などの画面
+│       ├── pages/            HomePage.tsx と MapPage.tsx。検索などの画面は未実装
 │       ├── api/              クライアント通信用の予定だった置き場。main.py は FastAPI の試作
 │       ├── types/            TypeScriptの型定義
 │       ├── utils/            共通関数
@@ -233,7 +234,7 @@ Cloudflare への自動デプロイは未実装です。既存の GitHub Actions
 
 ## 開発状況
 
-`main` にあるのは、フロントエンドの TypeScript 開発環境、ホームと地図の画面枠、開発用のモック店舗一覧、メモリ上の割引データを返す FastAPI の試作（[frontend/src/api/main.py](frontend/src/api/main.py)）、Frontend CI、共同開発用の文書です。地図ライブラリは未導入です。店舗一覧は API へ通信せず、モックデータを返します。この試作 API は Cloudflare Workers でも Cloudflare D1 でもありません。PostgreSQL、IndexedDB、Cloudflare へのデプロイは未実装です。
+`main` にあるのは、Vite と React のフロントエンド、ホームと地図の画面枠、開発用のモック店舗一覧、メモリ上の割引データを返す FastAPI の試作（[frontend/src/api/main.py](frontend/src/api/main.py)）、Frontend CI、共同開発用の文書です。地図ライブラリは未導入です。店舗一覧は API へ通信せず、モックデータを返します。この試作 API は Cloudflare Workers でも Cloudflare D1 でもありません。PostgreSQL、IndexedDB、Cloudflare へのデプロイは未実装です。
 
 Cloudflare は採用方針です。Workers、D1、デプロイ、大学側の利用許可は未了です。
 

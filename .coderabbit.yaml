@@ -17,9 +17,10 @@ reviews:
   path_instructions:
     - path: "frontend/src/**"
       instructions: |
-        正本は REVIEW.md。現行構成は Vite と Vanilla TypeScript であり、React や Vue は未採用。
+        正本は REVIEW.md。現行構成は Vite、React、TypeScript であり、Vue は未採用。React Router は未導入。
         TypeScript の型を緩めたり any でエラーを消したりしていないか見る。
         XSS、入力値検証、既存の検索と店舗一覧の破壊、非同期処理の失敗と画面離脱後の結果を見る。
+        店舗名と住所を HTML 文字列や dangerouslySetInnerHTML で挿入していないか見る。
         frontend/src/api/main.py はメモリ上の FastAPI 試作であり、Cloudflare Workers でも D1 でもない。
         指摘には重要度（Critical、High、Medium、Low）、問題箇所、発生条件、影響、修正方針を書く。
     - path: "frontend/scripts/**"
