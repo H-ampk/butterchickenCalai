@@ -1,28 +1,94 @@
+# Dependencies and build output
 node_modules/
 dist/
 dist-ssr/
+coverage/
 *.local
+*.tsbuildinfo
 
+# Environment variables
 .env
 .env.*
 !.env.example
 
+# Cloudflare Workers local secrets and state
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+.wrangler/
+
+# Logs
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# OS
 .DS_Store
 Thumbs.db
-*.tsbuildinfo
 
+# Editors
 .vscode/
 !.vscode/extensions.json
 .idea/
 
+# Python
 __pycache__/
 *.pyc
 *.pyo
 .venv/
 venv/
+
+# Local databases
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite3-journal
+*.sqlite3-wal
+*.sqlite3-shm
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Google OAuth / Gmail credentials
+credentials.json
+token.json
+token_*.json
+token.pickle
+client_secret*.json
+service-account*.json
+service_account*.json
+application_default_credentials.json
+
+# Private keys
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa
+id_ed25519
+
+# Gmail exports and personal data
+gmail_all_inbox*.txt
+*_gmail_all_inbox.txt
+*.mbox
+sdgs_imap_seen.json
+sdgs_seen.json
+g_SDGS*.txt
+g_その他*.txt
+SDGS_メール_*.txt
+SDGS_データ.txt
+products_SDGS.txt
+sdgs_products*.csv
+SDGS_お店緯度経度.csv
+PostgreSQL確認.txt
+使用コマンド.txt
+
+# Provided source code (any directory level)
+GmailPython/
+GmailPython.zip
+b_GmailPython*
