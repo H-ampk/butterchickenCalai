@@ -75,7 +75,7 @@ export interface Shop {
 
 ### 割引の試作
 
-[frontend/src/api/main.py](../frontend/src/api/main.py) は、FastAPI の試作です。割引の配列をプロセスのメモリに持っています。D1 にも PostgreSQL にも接続せず、認証もありません。フロントエンドの `main.ts` からは呼ばれていません。採用予定の Workers API ではありません。
+[frontend/src/api/main.py](../frontend/src/api/main.py) は、FastAPI の試作です。割引の配列をプロセスのメモリに持っています。D1 にも PostgreSQL にも接続せず、認証もありません。フロントエンドの `main.tsx` からは呼ばれていません。採用予定の Workers API ではありません。
 
 試作が持つ項目は、数値の `id`、`shop_name`、`content`、`tags`、`latitude`、`longitude` です。`GET /discounts` と `POST /discounts` があります。このパスと項目は、合意済みの仕様ではありません。この草案の候補と形が似ていても、試作を仕様として採用しません。
 
