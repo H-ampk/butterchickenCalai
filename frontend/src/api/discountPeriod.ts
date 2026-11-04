@@ -58,9 +58,27 @@ function readInstant(value: string | null): InstantRead {
   if (!/(?:Z|[+-]\d{2}:\d{2})$/.test(value)) {
     return { kind: 'invalid' }
   }
+  const datePart = /^(\d{4})-(\d{2})-(\d{2})T/.exec(value)
+  if (datePart === null || !isUtcCalendarDate(datePart[1], datePart[2], datePart[3])) {
+    return { kind: 'invalid' }
+  }
   const ms = Date.parse(value)
   if (!Number.isFinite(ms)) {
     return { kind: 'invalid' }
   }
   return { kind: 'instant', ms }
+}
+
+/** Date.parse は 2月30日などを翌月へ繰り上げるため、実在する暦日かを先に見る。 */
+function isUtcCalendarDate(yearText: string, monthText: string, dayText: string): boolean {
+  const year = Number(yearText)
+  const month = Number(monthText)
+  const day = Number(dayText)
+  const calendar = new Date(0)
+  calendar.setUTCFullYear(year, month - 1, day)
+  return (
+    calendar.getUTCFullYear() === year &&
+    calendar.getUTCMonth() === month - 1 &&
+    calendar.getUTCDate() === day
+  )
 }

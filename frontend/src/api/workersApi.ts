@@ -83,6 +83,12 @@ export function resolveApiBaseUrl(): string {
 }
 
 /**
+ * 応答が返らない要求の暫定上限。通信タイムアウトの規約はリポジトリに無い。
+ * 期限切れは fetch が拒否し、呼び出し側では ApiNetworkError になる。
+ */
+const REQUEST_TIMEOUT_MS = 10_000
+
+/**
  * 草案の一覧オブジェクトから items を取り出す。
  * 配列をそのまま返す形は Issue #42 で未合意のため、その応答は形式不一致にする。
  * 通信失敗を空配列にはしない。
@@ -94,6 +100,7 @@ export async function fetchProvisionalList(path: string): Promise<unknown[]> {
     response = await fetch(url, {
       method: 'GET',
       headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     })
   } catch (cause) {
     throw new ApiNetworkError(cause)

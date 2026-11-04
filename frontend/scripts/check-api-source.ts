@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { runWithEnvLock } from './lib/env-lock.ts'
 import { classifyDiscountForNormalList, getDiscountOrigin, getDiscounts } from '../src/api/discounts.ts'
 import { mockDiscounts } from '../src/api/mockDiscounts.ts'
 import { mockShops } from '../src/api/mockShops.ts'
@@ -134,6 +135,31 @@ test('api mode loads shops, empty lists, and failures without falling back to mo
   }, async () => {
     await assert.rejects(() => withEnv({ source: 'api', base: undefined }, () => getShops()), DataSourceConfigError)
   })
+
+  await withFetch((_input, init) => {
+    const signal = init?.signal
+    assert.ok(signal)
+    return new Promise<Response>((_resolve, reject) => {
+      signal.addEventListener('abort', () => {
+        reject(signal.reason)
+      })
+    })
+  }, async () => {
+    const realTimeout = AbortSignal.timeout
+    AbortSignal.timeout = ((milliseconds: number) => {
+      assert.equal(milliseconds, 10_000)
+      const controller = new AbortController()
+      setTimeout(() => {
+        controller.abort(new DOMException('timeout', 'TimeoutError'))
+      }, 0)
+      return controller.signal
+    }) as typeof AbortSignal.timeout
+    try {
+      await assert.rejects(() => withEnv(apiEnv, () => getShops()), ApiNetworkError)
+    } finally {
+      AbortSignal.timeout = realTimeout
+    }
+  })
 })
 
 test('mock discounts keep ended rows and can be matched to shops', async () => {
@@ -211,6 +237,53 @@ test('discount period leaves the undecided boundary undecided', () => {
     kind: 'exclude',
     reason: 'ended',
   })
+})
+
+test('nonexistent calendar dates stay undecided', () => {
+  const absentDay = discountAt({
+    startsAt: '2026-01-01T00:00:00Z',
+    endsAt: '2026-02-30T00:00:00Z',
+  })
+  assert.deepEqual(classifyDiscountForNormalList(absentDay, fixedNow), {
+    kind: 'undecided',
+    reason: 'invalid-datetime',
+  })
+
+  const absentStart = discountAt({
+    startsAt: '2025-02-29T00:00:00+09:00',
+    endsAt: null,
+  })
+  assert.deepEqual(classifyDiscountForNormalList(absentStart, fixedNow), {
+    kind: 'undecided',
+    reason: 'invalid-datetime',
+  })
+
+  const april31 = discountAt({
+    startsAt: '2026-04-31T00:00:00Z',
+    endsAt: null,
+  })
+  assert.deepEqual(classifyDiscountForNormalList(april31, fixedNow), {
+    kind: 'undecided',
+    reason: 'invalid-datetime',
+  })
+
+  const leapDay = discountAt({
+    startsAt: '2024-02-29T00:00:00Z',
+    endsAt: '2024-03-01T00:00:00Z',
+  })
+  assert.deepEqual(
+    classifyDiscountForNormalList(leapDay, new Date('2024-02-29T12:00:00Z')),
+    { kind: 'include' },
+  )
+
+  const monthEnd = discountAt({
+    startsAt: '2026-01-31T15:00:00+09:00',
+    endsAt: null,
+  })
+  assert.deepEqual(
+    classifyDiscountForNormalList(monthEnd, new Date('2026-01-31T06:00:00Z')),
+    { kind: 'include' },
+  )
 })
 
 test('api mode loads discounts and reports http and shape failures', async () => {
@@ -309,23 +382,51 @@ function withEnv<T>(
   env: { source: string | undefined; base?: string | undefined },
   run: () => Promise<T>,
 ): Promise<T> {
+  return runWithEnvLock(async () => {
+    const previousSource = process.env.VITE_DATA_SOURCE
+    const previousBase = process.env.VITE_API_BASE_URL
+    assignEnv('VITE_DATA_SOURCE', env.source)
+    assignEnv('VITE_API_BASE_URL', env.base)
+    try {
+      return await run()
+    } finally {
+      assignEnv('VITE_DATA_SOURCE', previousSource)
+      assignEnv('VITE_API_BASE_URL', previousBase)
+    }
+  })
+}
+
+test('withEnv keeps values until the promise settles and restores them', async () => {
   const previousSource = process.env.VITE_DATA_SOURCE
   const previousBase = process.env.VITE_API_BASE_URL
-  assignEnv('VITE_DATA_SOURCE', env.source)
-  assignEnv('VITE_API_BASE_URL', env.base)
-  try {
-    const pending = run()
-    restore()
-    return pending
-  } catch (error) {
-    restore()
-    throw error
-  }
+  const seen = await Promise.all([
+    withEnv({ source: 'mock', base: 'http://mock.invalid' }, async () => {
+      await delay(30)
+      return `${process.env.VITE_DATA_SOURCE}|${process.env.VITE_API_BASE_URL}`
+    }),
+    withEnv({ source: 'api', base: 'http://127.0.0.1:8787' }, async () => {
+      await delay(10)
+      return `${process.env.VITE_DATA_SOURCE}|${process.env.VITE_API_BASE_URL}`
+    }),
+  ])
+  assert.deepEqual(seen.sort(), ['api|http://127.0.0.1:8787', 'mock|http://mock.invalid'])
 
-  function restore(): void {
-    assignEnv('VITE_DATA_SOURCE', previousSource)
-    assignEnv('VITE_API_BASE_URL', previousBase)
-  }
+  await assert.rejects(
+    () =>
+      withEnv({ source: 'api', base: 'http://127.0.0.1:8787' }, async () => {
+        await Promise.resolve()
+        throw new Error('boom')
+      }),
+    /boom/,
+  )
+  assert.equal(process.env.VITE_DATA_SOURCE, previousSource)
+  assert.equal(process.env.VITE_API_BASE_URL, previousBase)
+})
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms)
+  })
 }
 
 function assignEnv(name: 'VITE_DATA_SOURCE' | 'VITE_API_BASE_URL', value: string | undefined): void {
