@@ -11,7 +11,7 @@
 | API のパスと入出力 | 未決定 | [#42](https://github.com/H-ampk/butterchickenCalai/issues/42) は Open。[api-contract.md](api-contract.md) はレビュー用草案で、サンプルのパスは候補 |
 | エラーレスポンス | 未決定 | 同じ草案の未合意事項。HTTP ステータスも確定していない |
 | D1 のテーブルと列 | 未決定 | [#63](https://github.com/H-ampk/butterchickenCalai/issues/63) は Open。`database/README.md` の表名は検討中 |
-| Workers と D1 のバインディング | 未実装 | [#43](https://github.com/H-ampk/butterchickenCalai/issues/43) は Open。リポジトリに Wrangler の設定は無い |
+| Workers と D1 のバインディング | ローカルの接続確認のみ | [#43](https://github.com/H-ampk/butterchickenCalai/issues/43)。バインディング名 `DB` はローカル設定。リモートの `database_id` は無い。店舗・割引の読み取りは未実装 |
 | migration | 未実装 | `database/` に SQL は無い |
 | フロントの取得口 | 実装済み。パスは仮 | [#81](https://github.com/H-ampk/butterchickenCalai/pull/81)。`GET /shops` と `GET /discounts` は仮パス |
 | 販売期間の通常一覧 | 方針はあり、Workers への適用は #50 | 終了後は通常一覧から外し、行は削除しない。境界時刻などは未決定 |

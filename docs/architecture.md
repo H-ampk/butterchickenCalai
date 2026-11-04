@@ -1,12 +1,12 @@
 # システム構成
 
-この文書は、地域割引SNSアプリの構成方針です。現行の実装、旧設計、採用予定を分けて書きます。Cloudflare の環境構築、デプロイ、大学側の利用許可は終わっていません。この文書の更新では、アプリケーションコード、API 仕様、DB スキーマ、GitHub Actions、既存 Issue は変更していません。
+この文書は、地域割引SNSアプリの構成方針です。現行の実装、旧設計、採用予定を分けて書きます。ローカルの Workers 手順は [workers-local.md](workers-local.md) です。本番の Cloudflare アカウント、デプロイ、大学側の利用許可は終わっていません。
 
 | 区分 | 意味 |
 | --- | --- |
 | 現行の実装 | `main` に入っているもの |
 | 旧設計 | 文書と Issue が前提にしていた Python / FastAPI と PostgreSQL。`main` にあるのはメモリ上の FastAPI 試作のみで、PostgreSQL は未実装 |
-| 採用予定 | 一般公開と初期の無料運用を見据えた Cloudflare の方針。環境は未構築 |
+| 採用予定 | 一般公開と初期の無料運用を見据えた Cloudflare の方針。ローカルの Wrangler はある。本番のアカウント、リモート D1、デプロイは未了 |
 
 ## 現行の実装
 
@@ -108,7 +108,7 @@ PostgreSQL
 
 ## 店舗・割引情報の取得フロー
 
-次は採用予定の流れです。Workers の API も D1 も未実装であり、エンドポイントのパスはこの文書では決めません。パスは [api-contract.md](api-contract.md) のとおり、チームの合意まで確定しません。現行の `frontend/src/api/main.py` はメモリ上の配列を読み書きしており、この流れではありません。
+次は採用予定の流れです。店舗・割引の API と D1 のスキーマは未実装であり、エンドポイントのパスはこの文書では決めません。ローカルの静的配信と接続確認は [workers-local.md](workers-local.md) です。パスは [api-contract.md](api-contract.md) のとおり、チームの合意まで確定しません。現行の `frontend/src/api/main.py` はメモリ上の配列を読み書きしており、この流れではありません。
 
 1. ブラウザが HTTPS で Workers にアクセスする。
 2. Workers が、Vite のビルド結果である静的ファイルを返す。
@@ -177,11 +177,11 @@ PostgreSQL
 - GitHub Actions による自動デプロイは今後整備する。現行の Frontend CI は型チェックとビルドだけを行う
 - 正式公開の前に、無料枠の制限、利用規約、運用責任、大学側の利用許可を確認する
 
-Workers、D1、独自ドメイン、デプロイ用のワークフローは未作成です。
+ローカル開発用の Wrangler 設定は [../workers/wrangler.jsonc](../workers/wrangler.jsonc) にあります。手順は [workers-local.md](workers-local.md) です。独自ドメイン、リモート D1、デプロイ用のワークフローは未作成です。GitHub Actions にデプロイ権限は追加していません。
 
 ## 旧構成から変更する場合の影響範囲
 
-採用予定へ移す場合、少なくとも次の調整が必要です。今回の更新では、調整先の本文は変えていません。
+採用予定へ移す場合、少なくとも次の調整が必要です。次の文書と Issue は、旧設計の記述を残しています。
 
 - [frontend/src/api/main.py](../frontend/src/api/main.py) は FastAPI の試作であり、`GET /discounts` と `POST /discounts` を定義している。[api-contract.md](api-contract.md) は、パスを合意まで確定しないと書いている。この試作のパスを、この文書では仕様として採用しない
 - [backend/README.md](../backend/README.md) は、Python / FastAPI を予定し、現時点では未実装と書いている。`backend/` にはアプリケーションコードが無い。試作は `frontend/src/api/main.py` にあり、[Issue #6](https://github.com/H-ampk/butterchickenCalai/issues/6) の完了条件（依存関係、ルーター構成、環境変数、PostgreSQL 接続、起動手順）は満たしていない
@@ -197,7 +197,7 @@ Workers、D1、独自ドメイン、デプロイ用のワークフローは未�
 
 D1 は SQLite 系のデータベースです。PostgreSQL の型、拡張機能、migration ツールで作った手順を、D1 にそのまま適用できるとは限りません。#5 の成果を D1 へ移す場合は、スキーマの書き直しが必要になる可能性があります。
 
-ディレクトリ構成は旧設計の名前のままです。FastAPI 用と PostgreSQL 用のディレクトリは残しています。
+FastAPI 用の `backend/` と PostgreSQL 用の `database/` は残しています。ローカルの Workers は `workers/` です。
 
 API のリソース名とパスは、この文書では変更していません。
 

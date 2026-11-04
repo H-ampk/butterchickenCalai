@@ -43,9 +43,9 @@
 | --- | --- | --- |
 | フロントエンド | HTML / CSS / TypeScript / React | 現行。Vite と React。画面遷移に React Router は未使用 |
 | ビルド | Vite | 現行。`frontend/package.json` の `build` は `tsc` と `vite build` |
-| ホスティング | Cloudflare Workers（Static Assets） | 採用予定。環境未構築 |
-| API | Cloudflare Workers | 採用予定。未実装 |
-| データベース | Cloudflare D1 | 採用予定。データベース未作成 |
+| ホスティング | Cloudflare Workers（Static Assets） | ローカルの配信手順あり。本番は未公開 |
+| API | Cloudflare Workers | ローカルのヘルスチェックのみ。店舗・割引 API は未実装 |
+| データベース | Cloudflare D1 | ローカル接続の確認のみ。リモートのデータベースは未作成 |
 | ブラウザ内保存 | IndexedDB | 採用予定。お気に入りの最小情報のみ。未実装 |
 | 地図 | Leaflet / OpenStreetMap | 採用予定。`frontend/package.json` に地図ライブラリは無い |
 | バージョン管理 | Git / GitHub | 現行 |
@@ -110,6 +110,10 @@ GitHub Actions による Cloudflare への自動デプロイは、今後整備�
 ├── README.md
 ├── .gitignore
 ├── .editorconfig
+├── workers/                  ローカルの Workers と D1 接続確認
+│   ├── package.json
+│   ├── wrangler.jsonc
+│   └── src/
 ├── frontend/                 フロントエンド（TypeScript / Vite）
 │   ├── package.json
 │   ├── package-lock.json
@@ -138,7 +142,7 @@ GitHub Actions による Cloudflare への自動デプロイは、今後整備�
     └── development-guide.md
 ```
 
-中身のないディレクトリには、Gitで追跡するための `.gitkeep` があります。ディレクトリ名は旧設計のままです。Cloudflare Workers と D1 用のディレクトリは、まだ追加していません。
+中身のないディレクトリには、Gitで追跡するための `.gitkeep` があります。`backend/` と `database/` の名前は旧設計のままです。ローカルの Workers は `workers/` にあります。手順は [Workers とローカル D1](docs/workers-local.md) です。
 
 ## 開発環境のセットアップ
 
@@ -165,7 +169,9 @@ npm run preview
 
 APIの基底URLは `frontend/.env.example` の `VITE_API_BASE_URL` を参照します。ローカルで使う場合は、このファイルを `frontend/.env` にコピーしてください。`.env` は Git に含めません。例の値は `http://localhost:8000` であり、旧設計のローカル待受を想定したままです。Workers の URL へは変更していません。
 
-旧設計の Python / FastAPI と PostgreSQL は、バックエンド担当とデータベース担当の作業範囲として [backend/README.md](backend/README.md) と [database/README.md](database/README.md) に残っています。[frontend/src/api/main.py](frontend/src/api/main.py) は FastAPI の試作ですが、依存パッケージの定義と PostgreSQL 接続は無く、[Issue #6](https://github.com/H-ampk/butterchickenCalai/issues/6) の完了条件は満たしていません。Cloudflare Workers と D1 の環境も未構築です。Wrangler などの導入は、このリポジトリでは行っていません。
+Vite のビルド結果をローカルの Workers から開く手順、ローカル D1 の接続確認、ヘルスチェックは [Workers とローカル D1](docs/workers-local.md) にあります。Cloudflare へのログインとデプロイは不要です。本番のアカウント、リモート D1、大学の利用許可は未了です。
+
+旧設計の Python / FastAPI と PostgreSQL は、バックエンド担当とデータベース担当の作業範囲として [backend/README.md](backend/README.md) と [database/README.md](database/README.md) に残っています。[frontend/src/api/main.py](frontend/src/api/main.py) は FastAPI の試作ですが、依存パッケージの定義と PostgreSQL 接続は無く、[Issue #6](https://github.com/H-ampk/butterchickenCalai/issues/6) の完了条件は満たしていません。この試作は Workers の公開 API にしていません。
 
 ## チーム開発
 
@@ -216,7 +222,7 @@ docs/update-readme
 
 CI の成功は、型チェックとビルドが通ったことだけを示します。アプリの全機能が動作することの保証ではありません。バックエンド、データベース、自動テスト、デプロイはこのワークフローの対象外です。
 
-Cloudflare への自動デプロイは未実装です。既存の GitHub Actions は、この方針の文書化では変更していません。
+Cloudflare への自動デプロイは未実装です。Frontend CI にデプロイ権限は追加していません。
 
 ## セキュリティ方針
 
@@ -236,10 +242,11 @@ Cloudflare への自動デプロイは未実装です。既存の GitHub Actions
 
 `main` にあるのは、Vite と React のフロントエンド、ホームと地図の画面枠、開発用のモック店舗一覧、メモリ上の割引データを返す FastAPI の試作（[frontend/src/api/main.py](frontend/src/api/main.py)）、Frontend CI、共同開発用の文書です。地図ライブラリは未導入です。店舗一覧は API へ通信せず、モックデータを返します。この試作 API は Cloudflare Workers でも Cloudflare D1 でもありません。PostgreSQL、IndexedDB、Cloudflare へのデプロイは未実装です。
 
-Cloudflare は採用方針です。Workers、D1、デプロイ、大学側の利用許可は未了です。
+Cloudflare は採用方針です。ローカルの Workers 配信とローカル D1 の接続確認は [Workers とローカル D1](docs/workers-local.md) にあります。リモート D1、デプロイ、大学側の利用許可は未了です。
 
 ## ドキュメント
 
+- [Workers とローカル D1](docs/workers-local.md)
 - [システム構成](docs/architecture.md)
 - [API連携方針](docs/api-contract.md)
 - [共同開発ガイド](docs/development-guide.md)

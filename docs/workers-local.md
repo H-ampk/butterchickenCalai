@@ -1,0 +1,142 @@
+# Workers とローカル D1
+
+この手順は、Vite でビルドした React アプリをローカルの Cloudflare Workers から開き、ローカル D1 への接続を確認するためのものです。Cloudflare へのログイン、本番用 D1 の作成、デプロイ、大学の利用許可は不要です。いずれも未了のままにしてください。
+
+店舗一覧と割引一覧の API、D1 のテーブル定義と migration は、この手順では作りません。それぞれ [Issue #45](https://github.com/H-ampk/butterchickenCalai/issues/45)、[Issue #42](https://github.com/H-ampk/butterchickenCalai/issues/42)、[Issue #63](https://github.com/H-ampk/butterchickenCalai/issues/63) の範囲です。
+
+## ローカルと本番の違い
+
+| 項目 | ローカル（この手順） | 本番 |
+| --- | --- | --- |
+| 実行 | 手元の Wrangler | 未デプロイ。GitHub Actions にもデプロイ権限はない |
+| 静的ファイル | `frontend/dist` を Workers Static Assets で配信 | 未公開 |
+| D1 | Wrangler が作るローカル専用の SQLite。`.wrangler/` にあり Git 管理しない | 作成しない。`database_id` も置かない |
+| アカウント | ログイン不要 | Cloudflare アカウントの所有者は未決定 |
+| 利用許可 | 不要 | 大学の利用許可は未了 |
+| ヘルスチェック | `GET /__health`。開発用であり、店舗・割引 API ではない | 公開時の扱いは未決定 |
+
+`workers/wrangler.jsonc` の `database_name` は `butterchicken-calai-local` です。これはローカル設定上の名前であり、Cloudflare 上のデータベースではありません。バインディング名は `DB` です。Issue #43 は PG-01 と同じバインディング名で接続する、と書いています。名前そのものは Issue 本文に無く、未マージの Draft PR #92 が候補として `DB` を書いています。API 契約の確定ではありません。
+
+リモート D1 へつなぐ `"remote": true` と、`wrangler d1 execute` の `--remote` は使いません。`database_id` が無いため、リモート操作は失敗します。失敗したコマンドを、UUID を作って通さないでください。
+
+## 必要な環境
+
+- Git
+- Node.js 20.19.0 以上、または 22.12.0 以上。このリポジトリの Frontend CI は Node.js 22 です
+- npm
+
+Wrangler は `workers/package.json` の開発依存です。バージョンは 4.157.0 です。同梱の workerd は 2026-11-03 です。`compatibility_date` はこの日付に合わせています。これより未来の日付にすると、ローカル起動は失敗します。
+
+Wrangler 4.61.1 以降は、ローカルの D1 操作で `database_id` を省略できます。公式の設定スキーマでも `database_id` は必須ではありません。
+
+## インストール
+
+PowerShell で、リポジトリのルートから実行します。
+
+```powershell
+cd frontend
+npm ci
+cd ..\workers
+npm ci
+```
+
+依存関係を初めて入れる開発マシンでは、`npm ci` の代わりに `npm install` でも同じパッケージを入れられます。ロックファイルは `frontend/package-lock.json` と `workers/package-lock.json` です。
+
+## Vite のビルド
+
+既存の開発サーバーは、これまでどおり `frontend` で `npm run dev` です。待受は `http://localhost:5173` です。このコマンドは Workers を起動しません。
+
+Workers から配信するファイルは、Vite の本番ビルド結果です。
+
+```powershell
+cd frontend
+npm run build
+```
+
+`npm run build` は `tsc` と `vite build` です。出力先は `frontend/dist` です。このディレクトリは Git 管理しません。
+
+## Workers のローカル起動
+
+`frontend/dist/index.html` が無い状態で Workers を起動すると、`workers` の `npm run dev` は止まるようにしてあります。
+
+```powershell
+cd workers
+npm run dev
+```
+
+待受は `http://127.0.0.1:8787` です。ブラウザでこの URL を開くと、ホーム画面が出ます。静的ファイルは Workers Static Assets が返します。`/__health` だけ Worker スクリプトを先に実行します。画面の URL ルーティングは使っていません。未知のパスは、単一ページ向けの設定により `index.html` を返します。
+
+停止は、その PowerShell で Ctrl+C です。
+
+## ローカル D1
+
+初回の `npm run dev` または次のコマンドで、ローカル D1 のファイルが `workers/.wrangler/` に作られます。スキーマは空のままで構いません。店舗テーブルと割引テーブルは不要です。
+
+```powershell
+cd workers
+npm run d1:check
+```
+
+これは次と同じです。
+
+```powershell
+npx wrangler d1 execute DB --local --command "SELECT 1 AS ok;"
+```
+
+成功すると、実行結果に `ok` と `1` が出ます。このコマンドはリモートへ接続しません。
+
+ローカル D1 のファイルを消して最初からにする場合は、Workers を止めてから `workers/.wrangler` を削除します。本番データは入っていません。
+
+## ヘルスチェック
+
+Workers を起動した別の PowerShell で実行します。
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:8787/__health
+```
+
+接続できているときの応答は次です。HTTP ステータスは 200 です。
+
+```json
+{
+  "status": "ok",
+  "database": "connected"
+}
+```
+
+バインディングが無い、またはクエリが失敗したときは、200 にはしません。HTTP 503 と、次の本文だけを返します。SQL と例外の文章は含めません。
+
+```json
+{
+  "status": "error",
+  "database": "unavailable"
+}
+```
+
+`GET` 以外は HTTP 405 です。このパスはローカル確認用です。本番へ公開する場合の扱いは決めていません。
+
+## テスト
+
+```powershell
+cd frontend
+npm test
+npm run build
+cd ..\workers
+npm run check
+npm test
+```
+
+`workers` の `npm test` は、ヘルスチェックの単体テストと、ローカル Workers を起動する統合テストです。統合テストの前に `frontend` の `npm run build` が必要です。Frontend CI は `frontend` の型チェックとビルドだけを実行し、この統合テストは走らせません。
+
+## よくあるエラー
+
+| 現象 | 対処 |
+| --- | --- |
+| `frontend/dist/index.html がありません` | `frontend` で `npm run build` してから、`workers` で `npm run dev` する |
+| `database_id` が無い、というリモート向けのエラー | `--remote` を外す。`npm run d1:check` は `--local` 付きである |
+| ブラウザが Cloudflare のログインを求める、または本番 URL を作ろうとする | `wrangler deploy` と `wrangler login` は実行しない |
+| `http://127.0.0.1:8787` に接続できない | 先に `workers` で `npm run dev` が動いているか確認する。ポート 8787 を他のプロセスが使っている場合は、そのプロセスを止める |
+| `/__health` が HTML を返す | `workers/wrangler.jsonc` の `run_worker_first` に `/__health` があるか確認する。静的配信の単一ページ設定は、この指定が無いと未知のパスへ `index.html` を返す |
+| `npm run dev` が `frontend` で Workers にならない | 想定どおり。Vite の開発サーバーは `frontend`、Workers は `workers` |
+
+秘密情報は `.env`、`.dev.vars`、Wrangler のローカル状態に置きます。これらは Git 管理しません。`VITE_` で始まる環境変数に秘密情報を入れないでください。

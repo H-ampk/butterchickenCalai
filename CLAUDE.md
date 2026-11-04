@@ -21,12 +21,12 @@
 | 区分 | 意味 | このリポジトリでの例 |
 | --- | --- | --- |
 | 現行の実装 | `main` に入っているもの | Vite、React、TypeScript、モック店舗一覧、Frontend CI、`frontend/src/api/main.py` のメモリ上の試作 |
-| 採用予定 | 方針は決まっている。環境も実装も未了 | Cloudflare Workers、Cloudflare D1、IndexedDB、Leaflet / OpenStreetMap、GitHub Actions からのデプロイ |
+| 採用予定 | 方針は決まっている。本番環境は未了 | Cloudflare Workers、Cloudflare D1、IndexedDB、Leaflet / OpenStreetMap、GitHub Actions からのデプロイ。ローカルの Wrangler と `GET /__health` だけは `workers/` にある |
 | 旧設計 | 文書と Issue が前提にしていた構成。本実装は未了 | `backend/` の FastAPI、PostgreSQL。Issue テンプレートの対象領域もこの区分の名称のまま |
 | 将来実装 | 項目だけで、方式は未決定のものが多い | いいね、コメント、AI による割引情報抽出、割引率などの検索、おすすめ、通知 |
 | 未決定 | 方針も方式も確定していない | 認証方式、API のパス、D1 のテーブル、通知方式、お気に入りの対象を店舗と投稿のどちらに揃えるか |
 
-Cloudflare Workers と Cloudflare D1 は採用予定です。アカウント、Workers、D1、Secrets、デプロイは作成していません。実装済み、接続済み、デプロイ済みと書かないでください。
+Cloudflare Workers と Cloudflare D1 は採用予定です。ローカルの配信とローカル D1 の接続確認は [docs/workers-local.md](docs/workers-local.md) にあります。本番のアカウント、リモート D1、Secrets、デプロイは作成していません。本番へ公開済み、リモート D1 へ接続済み、と書かないでください。`GET /__health` を店舗・割引 API の契約として扱わないでください。
 
 `frontend/src/api/main.py` は FastAPI の試作です。割引データはプロセス内の配列にあり、再起動で消えます。PostgreSQL にも D1 にも接続せず、認証もありません。採用予定の Workers API ではありません。`backend/` の基本環境と Python の依存関係定義は未実装です。
 
@@ -51,6 +51,9 @@ API のエンドポイント、認証方式、エラー形式は未確定です�
 ├── .coderabbit.yaml          CodeRabbit の設定。README の図には未掲載
 ├── .cursor/rules/            Cursor Rules。README の図には未掲載
 ├── README.md
+├── workers/                  ローカルの Workers。本番デプロイはしない
+│   ├── wrangler.jsonc        バインディング DB。database_id は置かない
+│   └── src/                  静的配信と GET /__health
 ├── frontend/                 現行のフロントエンド（React / TypeScript / Vite）
 │   ├── package.json
 │   ├── scripts/              node:test。README の図には未掲載。Frontend CI は未実行
@@ -76,7 +79,7 @@ API のエンドポイント、認証方式、エラー形式は未確定です�
     └── workflows/frontend-ci.yml
 ```
 
-中身のないディレクトリには `.gitkeep` があります。`backend/` と `database/` の名前は旧設計のままです。Cloudflare Workers と D1 用のディレクトリは、まだ追加していません。ディレクトリの新設は、担当範囲の調整とセットで行い、この規約の追記だけでは行いません。README の図へ `CLAUDE.md`、`REVIEW.md`、`.coderabbit.yaml`、`.cursor/rules/`、`frontend/scripts/` を載せる作業は、この規約とは別です。
+中身のないディレクトリには `.gitkeep` があります。`backend/` と `database/` の名前は旧設計のままです。ローカルの Workers は `workers/` です。リモート D1 の作成、スキーマの追加、デプロイは、このディレクトリの存在を理由に行わないでください。README の図へ `CLAUDE.md`、`REVIEW.md`、`.coderabbit.yaml`、`.cursor/rules/`、`frontend/scripts/` を載せる作業は、この規約とは別です。
 
 ## 4. ブランチ運用
 
