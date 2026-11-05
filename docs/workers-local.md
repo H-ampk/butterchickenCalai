@@ -22,18 +22,23 @@
 ## 必要な環境
 
 - Git
-- Node.js 20.19.0 以上、または 22.12.0 以上。このリポジトリの Frontend CI は Node.js 22 です
+- Node.js 22.18.0 以上。23 系を使う場合は 23.6.0 以上
 - npm
 
-Wrangler は `workers/package.json` の開発依存です。バージョンは 4.157.0 です。同梱の workerd は 2026-11-03 です。`compatibility_date` はこの日付に合わせています。これより未来の日付にすると、ローカル起動は失敗します。
+Wrangler は `workers/package.json` の開発依存です。バージョンは 4.157.0 です。この版の `engines.node` と起動時の確認は、Node.js 22.0.0 以上です。同梱の workerd は 2026-11-03 です。`compatibility_date` はこの日付に合わせています。これより未来の日付にすると、ローカル起動は失敗します。
+
+`workers` の `npm run dev` と `npm test` は、`node` で `.ts` を直接実行します。型除去のフラグは付けません。Node.js が型注釈を取り除いて `.ts` を実行する機能は、22.18.0 以降と 23.6.0 以降で既定です。22.17 以前と、23.0.0 以上 23.6.0 未満では、これらのスクリプトは実行できません。Wrangler の要件と合わせた最小バージョンは 22.18.0 です。`workers/package.json` の `engines` は `>=22.18.0 <23 || >=23.6.0` です。22.18.0 と 23.6.0 を、この環境で起動して確認してはいません。
 
 Wrangler 4.61.1 以降は、ローカルの D1 操作で `database_id` を省略できます。公式の設定スキーマでも `database_id` は必須ではありません。
 
 ## インストール
 
-PowerShell で、リポジトリのルートから実行します。
+PowerShell で実行します。このあとの各コードブロックは、先頭で作業ディレクトリをリポジトリのルートに戻します。ルート、`frontend`、`workers` のどれから始めても、ブロックを上から順に実行できます。これより深いディレクトリからでは失敗します。
 
 ```powershell
+if (Test-Path -LiteralPath '.\frontend\package.json') { cd . }
+elseif (Test-Path -LiteralPath '..\frontend\package.json') { cd .. }
+else { throw 'リポジトリのルート、frontend、workers のいずれかで実行してください。' }
 cd frontend
 npm ci
 cd ..\workers
@@ -49,6 +54,9 @@ npm ci
 Workers から配信するファイルは、Vite の本番ビルド結果です。
 
 ```powershell
+if (Test-Path -LiteralPath '.\frontend\package.json') { cd . }
+elseif (Test-Path -LiteralPath '..\frontend\package.json') { cd .. }
+else { throw 'リポジトリのルート、frontend、workers のいずれかで実行してください。' }
 cd frontend
 npm run build
 ```
@@ -60,26 +68,36 @@ npm run build
 `frontend/dist/index.html` が無い状態で Workers を起動すると、`workers` の `npm run dev` は止まるようにしてあります。
 
 ```powershell
+if (Test-Path -LiteralPath '.\frontend\package.json') { cd . }
+elseif (Test-Path -LiteralPath '..\frontend\package.json') { cd .. }
+else { throw 'リポジトリのルート、frontend、workers のいずれかで実行してください。' }
 cd workers
 npm run dev
 ```
 
 待受は `http://127.0.0.1:8787` です。ブラウザでこの URL を開くと、ホーム画面が出ます。静的ファイルは Workers Static Assets が返します。`/__health` だけ Worker スクリプトを先に実行します。画面の URL ルーティングは使っていません。未知のパスは、単一ページ向けの設定により `index.html` を返します。
 
-停止は、その PowerShell で Ctrl+C です。
+停止は、その PowerShell で Ctrl+C です。停止したあとの作業ディレクトリは `workers` です。次のブロックは、先頭でルートへ戻します。
 
 ## ローカル D1
 
 初回の `npm run dev` または次のコマンドで、ローカル D1 のファイルが `workers/.wrangler/` に作られます。スキーマは空のままで構いません。店舗テーブルと割引テーブルは不要です。
 
 ```powershell
+if (Test-Path -LiteralPath '.\frontend\package.json') { cd . }
+elseif (Test-Path -LiteralPath '..\frontend\package.json') { cd .. }
+else { throw 'リポジトリのルート、frontend、workers のいずれかで実行してください。' }
 cd workers
 npm run d1:check
 ```
 
-これは次と同じです。
+これは次と同じです。単独で実行する場合も、同じ先頭の移動から始めます。
 
 ```powershell
+if (Test-Path -LiteralPath '.\frontend\package.json') { cd . }
+elseif (Test-Path -LiteralPath '..\frontend\package.json') { cd .. }
+else { throw 'リポジトリのルート、frontend、workers のいずれかで実行してください。' }
+cd workers
 npx wrangler d1 execute DB --local --command "SELECT 1 AS ok;"
 ```
 
@@ -89,7 +107,7 @@ npx wrangler d1 execute DB --local --command "SELECT 1 AS ok;"
 
 ## ヘルスチェック
 
-Workers を起動した別の PowerShell で実行します。
+Workers を起動した別の PowerShell で実行します。作業ディレクトリはどこでも構いません。
 
 ```powershell
 Invoke-RestMethod http://127.0.0.1:8787/__health
@@ -118,6 +136,9 @@ Invoke-RestMethod http://127.0.0.1:8787/__health
 ## テスト
 
 ```powershell
+if (Test-Path -LiteralPath '.\frontend\package.json') { cd . }
+elseif (Test-Path -LiteralPath '..\frontend\package.json') { cd .. }
+else { throw 'リポジトリのルート、frontend、workers のいずれかで実行してください。' }
 cd frontend
 npm test
 npm run build
@@ -139,4 +160,4 @@ npm test
 | `/__health` が HTML を返す | `workers/wrangler.jsonc` の `run_worker_first` に `/__health` があるか確認する。静的配信の単一ページ設定は、この指定が無いと未知のパスへ `index.html` を返す |
 | `npm run dev` が `frontend` で Workers にならない | 想定どおり。Vite の開発サーバーは `frontend`、Workers は `workers` |
 
-秘密情報は `.env`、`.dev.vars`、Wrangler のローカル状態に置きます。これらは Git 管理しません。`VITE_` で始まる環境変数に秘密情報を入れないでください。
+この手順で秘密情報は使いません。環境ファイルは新しく作りません。個人情報、API キー、Secrets は、ソース、`VITE_` で始まる環境変数、ログ、`.env` に置きません。ローカルの Workers だけで秘密情報が必要になった場合は、`workers/.dev.vars` に置きます。Wrangler がローカル起動時にこのファイルを読みます。`.gitignore` は `.dev.vars` と `.dev.vars.*` を除外しているため、Git 管理しません。`workers/.wrangler/` はローカル D1 などの状態であり、秘密情報の保存先にはしません。これも Git 管理しません。
