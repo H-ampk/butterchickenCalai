@@ -125,7 +125,9 @@ TypeScript と React は、`frontend/src` の既存ファイルに合わせま�
 
 ## 7. テスト・ビルドの実行方法
 
-フロントエンドのディレクトリで実行します。必要な Node.js は 20.19.0 以上、または 22.12.0 以上です。Frontend CI は Node.js 22 を使います。
+フロントエンドのディレクトリで実行します。フロントエンドに必要な Node.js は 20.19.0 以上、または 22.12.0 以上です。Frontend CI は Node.js 22 を使い、`frontend` の型チェックとビルドだけを実行します。
+
+ローカルの Workers は `workers/` で実行します。必要な Node.js は 22.18.0 以上です。23 系は 23.6.0 以上です。`workers/package.json` の `engines` は `>=22.18.0 <23 || >=23.6.0` です。フロントエンド単体の要件は変えません。フロントエンドと Workers の両方を動かすときは、両方を満たすバージョンを使います。手順は [docs/workers-local.md](docs/workers-local.md) です。
 
 ```bash
 cd frontend
