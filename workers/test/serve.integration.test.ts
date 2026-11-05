@@ -42,6 +42,12 @@ function startWrangler(): ChildProcess {
   })
 }
 
+/**
+ * 起動した Wrangler を止める。
+ * 引数は `wrangler dev` の子プロセスで、すでに終了していれば何もしない。
+ * Windows では taskkill でプロセスツリーを終了し、taskkill が失敗しても例外にしない。
+ * それ以外は SIGTERM を送る。戻り値はない。
+ */
 async function stopWrangler(child: ChildProcess): Promise<void> {
   if (child.exitCode !== null || child.pid === undefined) {
     return
