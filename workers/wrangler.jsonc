@@ -1,0 +1,22 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "butterchicken-calai",
+  "main": "./src/index.ts",
+  "compatibility_date": "2026-11-03",
+  "workers_dev": false,
+  "preview_urls": false,
+  "assets": {
+    "directory": "../frontend/dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/__health"]
+  },
+  "d1_databases": [
+    {
+      // ローカル専用の名前。リモート D1 の UUID である database_id は置かない。
+      // Wrangler 4.61.1 以降は、--local の操作で database_id を省略できる。
+      "binding": "DB",
+      "database_name": "butterchicken-calai-local"
+    }
+  ]
+}

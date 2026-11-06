@@ -1,7 +1,6 @@
 # CodeRabbit configuration reference (2026-10-23 schema):
 # https://docs.coderabbit.ai/reference/configuration
-# 採用予定の Cloudflare Workers と D1 用ディレクトリは未作成。
-# ディレクトリ追加時に reviews.path_instructions へ path を足す。
+# workers/ はローカルの Wrangler とヘルスチェック。本番デプロイとリモート D1 は未了。
 language: ja-JP
 enable_free_tier: true
 tone_instructions: "具体的な問題と影響を書く。重要度は REVIEW.md の Critical、High、Medium、Low を使い、CodeRabbit の merge risk や security risk と同じ分類として扱わない。承認とマージはしない。"
@@ -15,6 +14,13 @@ reviews:
     enabled: true
     drafts: false
   path_instructions:
+    - path: "workers/**"
+      instructions: |
+        正本は REVIEW.md。このディレクトリはローカルの Workers 配信と、スキーマ不要の D1 接続確認である。
+        店舗・割引のルート、migration、リモート D1、wrangler deploy、秘密情報を追加していないか見る。
+        ヘルスチェックの失敗を 200 にしていないか、応答へ SQL や例外詳細を含めていないか見る。
+        database_id に実在しない UUID を埋めていないか見る。
+        指摘には重要度（Critical、High、Medium、Low）、問題箇所、発生条件、影響、修正方針を書く。
     - path: "frontend/src/**"
       instructions: |
         正本は REVIEW.md。現行構成は Vite、React、TypeScript であり、Vue は未採用。React Router は未導入。
@@ -36,12 +42,12 @@ reviews:
     - path: "docs/**"
       instructions: |
         現行の実装、採用予定、旧設計、未決定を混同していないか見る。未実装機能を実装済みと書いていないか確認する。
-        Cloudflare Workers と D1 は採用予定であり未実装。設計方針とセキュリティ要件の欠落、文書間の矛盾を指摘する。
+        Cloudflare Workers と D1 の本番環境は未了。ローカル手順は docs/workers-local.md。未実装機能を実装済みと書いていないか確認する。設計方針とセキュリティ要件の欠落、文書間の矛盾を指摘する。
         指摘には重要度（Critical、High、Medium、Low）、問題箇所、発生条件、影響、修正方針を書く。
     - path: "*.md"
       instructions: |
         ルートの Markdown を、現行の実装と設計方針に照らして見る。未実装機能の誤記、文書間の矛盾、セキュリティ要件の欠落を指摘する。
-        Cloudflare Workers と D1 は採用予定であり未実装。
+        Cloudflare の本番公開とリモート D1 は未了。ローカルの Workers は workers/ と docs/workers-local.md。
         指摘には重要度（Critical、High、Medium、Low）、問題箇所、発生条件、影響、修正方針を書く。
 knowledge_base:
   code_guidelines:

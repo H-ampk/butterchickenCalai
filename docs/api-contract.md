@@ -95,7 +95,7 @@ export interface Shop {
 
 ## 採用予定のアーキテクチャ
 
-共有する店舗と割引は、Cloudflare Workers の API を経由して Cloudflare D1 に保存します。ブラウザから D1 を直接更新しません。詳細は [architecture.md](architecture.md) にあります。Workers、D1、デプロイは未作成です。
+共有する店舗と割引は、Cloudflare Workers の API を経由して Cloudflare D1 に保存します。ブラウザから D1 を直接更新しません。詳細は [architecture.md](architecture.md) にあります。ローカルの Wrangler と `GET /__health` は [workers-local.md](workers-local.md) にあります。これは店舗・割引 API ではなく、契約の確定でもありません。リモート D1、店舗・割引のエンドポイント、デプロイは未作成です。
 
 - データ交換は JSON です。文字コードは UTF-8 を提案します。
 - D1 は SQLite 系です。PostgreSQL の専用の型や関数は使いません。

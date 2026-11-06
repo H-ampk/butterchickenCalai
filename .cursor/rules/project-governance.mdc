@@ -15,4 +15,4 @@ alwaysApply: true
 - 変更後は、その変更に必要な検証を行う。
 - 未実施、失敗、未確認を、実施済みと書かない。
 
-Cloudflare Workers と D1 は採用予定であり、未実装である。CodeRabbit は Frontend CI の代わりにせず、設定ファイルだけでマージは強制しない。
+Cloudflare Workers と D1 の本番環境は未了である。ローカルの確認手順は `docs/workers-local.md` にある。CodeRabbit は Frontend CI の代わりにせず、設定ファイルだけでマージは強制しない。
