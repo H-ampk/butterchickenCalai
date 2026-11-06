@@ -17,7 +17,7 @@
 | 開発チーム内での未決定事項 | 業務判断のあと、またはそれと並行して実装側が決める項目 | 「開発チーム内での未決定事項」 |
 | 将来の拡張機能 | 今回の店舗・割引の必須項目にしないもの | 「将来の拡張機能」 |
 
-Workers API と D1 は未実装です。未実装の処理を、実装済みの契約としては書きません。採用候補を、確定した仕様としては書きません。
+店舗・割引の Workers API と、そのデータを置く D1 のスキーマは未実装です。ローカルの Wrangler と `GET /__health` は [workers-local.md](workers-local.md) にあり、店舗・割引 API でも契約の確定でもありません。未実装の処理を、実装済みの契約としては書きません。採用候補を、確定した仕様としては書きません。
 
 ## 現行の実装
 
@@ -127,7 +127,7 @@ export interface Shop {
 - データ交換形式は JSON。通信の方式としては HTTP を使う。公開時の通信は HTTPS。詳細は [architecture.md](architecture.md)
 - API 設計には OpenAPI を使う。パスとデータ構造の合意まで、OpenAPI の定義ファイルはリポジトリに追加しない。合意後に、決定事項から定義ファイルを起こす
 - 合意した仕様で、TypeScript の型、Cloudflare Workers の API、Cloudflare D1 の列を揃える。FastAPI の試作はその仕様ではない
-- 共有する店舗と割引は、Workers の API を経由して D1 に保存する。ブラウザから D1 を直接更新しない。Workers、D1、デプロイは未作成。構成の詳細は [architecture.md](architecture.md)
+- 共有する店舗と割引は、Workers の API を経由して D1 に保存する。ブラウザから D1 を直接更新しない。ローカルの Wrangler と `GET /__health` は [workers-local.md](workers-local.md) にある。これは店舗・割引 API ではなく、契約の確定でもない。リモート D1、店舗・割引のエンドポイント、デプロイは未作成。構成の詳細は [architecture.md](architecture.md)
 - D1 は SQLite 系である。PostgreSQL の専用の型や関数は使わない
 - 登録、更新、削除の権限を持つ人は [Issue #58](https://github.com/H-ampk/butterchickenCalai/issues/58) で決める。認証方式はこの文書では決めない。書き込みに認証と認可を付ける方針は architecture.md にある
 - データベースのテーブル、制約、migration の具体化は [Issue #63](https://github.com/H-ampk/butterchickenCalai/issues/63) が行う。[database/README.md](../database/README.md) のテーブル名は検討中の名前であり、確定したスキーマではない
@@ -426,7 +426,7 @@ D1 のクエリ失敗を、すべて 503 にはしません。一時的にデー
 | ローカル開発 | Wrangler を使う |
 | 本番公開 | この候補の範囲では実施しない |
 
-[#43](https://github.com/H-ampk/butterchickenCalai/issues/43) の本文は、PG-01 と同じバインディング名でローカル D1 へ接続する、と書いています。名前そのものは #43 の本文に無いため、この候補で `DB` と呼ぶことにします。#43 が設定を実装し、#63 が migration の中身を実装します。この改訂では Wrangler の設定ファイルも migration も作りません。本番のアカウント、URL、大学の利用許可は未了のままです。
+[#43](https://github.com/H-ampk/butterchickenCalai/issues/43) の本文は、PG-01 と同じバインディング名でローカル D1 へ接続する、と書いています。名前そのものは #43 の本文に無いため、この候補で `DB` と呼ぶことにします。ローカルの Wrangler 設定は [../workers/wrangler.jsonc](../workers/wrangler.jsonc) にあり、バインディング名 `DB` でローカル D1 へ接続します。手順と `GET /__health` は [workers-local.md](workers-local.md) です。これは店舗・割引 API ではなく、上の表を契約として確定するものでもありません。migration の中身は #63 が実装します。この改訂では migration を作りません。本番のアカウント、URL、大学の利用許可は未了のままです。
 
 ### 販売期間
 

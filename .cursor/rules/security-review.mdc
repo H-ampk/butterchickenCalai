@@ -13,9 +13,9 @@ alwaysApply: false
 - 利用者由来の文字列を HTML として挿入しない。
 - API の入力は、信頼境界で必須、長さ、形式、範囲を確認する。エンドポイントは合意前に確定しない。
 - 個人情報、API キー、Secrets をソース、`VITE_` 環境変数、ログ、`.env` に置かない。
-- DB の更新は整合性を説明してから行う。Cloudflare D1 は採用予定で未作成である。PostgreSQL 案をそのまま使えるとは扱わない。
+- DB の更新は整合性を説明してから行う。リモートの Cloudflare D1 とスキーマは未作成である。ローカル確認は固定の `SELECT 1` に限る。PostgreSQL 案をそのまま使えるとは扱わない。
 - 取り置きと予約は、サーバー側で競合と二重登録を防ぐ。取り置き API は未実装である。
 - GitHub Actions の権限、トリガー、外部 Action、Secrets の参照を確認する。現行の Frontend CI にデプロイはない。
 - 本番環境、Cloudflare、Rulesets を、明示された対象以外へ変えない。
 
-Cloudflare Workers は採用予定であり、未実装である。`frontend/src/api/main.py` はメモリ上の試作であり、Workers API ではない。
+本番の Cloudflare Workers は未公開である。`workers/` の `GET /__health` はローカル確認であり、店舗・割引 API ではない。`frontend/src/api/main.py` はメモリ上の試作であり、Workers API ではない。
