@@ -25,7 +25,7 @@ Frontend CI
 型チェックと Vite のビルドのみ
 ```
 
-ブラウザ向けには、ホームと地図の画面枠があります。地図ライブラリは未導入で、地図領域はプレースホルダです。店舗一覧の既定は開発用のモックデータで、API へは通信しません。`VITE_DATA_SOURCE=api` のときだけ、[frontend/src/api/workersApi.ts](../frontend/src/api/workersApi.ts) の仮パス `GET /shops` と `GET /discounts` へ通信します。通信に失敗してもモックへは戻りません。この仮パスは、設計検討で採用した `/api/v1` ではありません。読み取り方針は [api-contract.md](api-contract.md) にあり、コードの定数はこの文書では変えていません。IndexedDB と Cloudflare へのデプロイは、`main` にはありません。Frontend CI の定義は [.github/workflows/frontend-ci.yml](../.github/workflows/frontend-ci.yml) です。この CI は TypeScript の型チェックと Vite のビルドだけを行い、Python は実行しません。
+ブラウザ向けには、ホームと地図の画面枠があります。地図ライブラリは未導入で、地図領域はプレースホルダです。店舗一覧の既定は開発用のモックデータで、API へは通信しません。`VITE_DATA_SOURCE=api` のとき、現行の地図画面は `getShops()` を通し、仮パス `GET /shops` へだけ通信します。`GET /discounts` は [frontend/src/api/discounts.ts](../frontend/src/api/discounts.ts) の取得口にありますが、現行の画面からは呼ばれていません。通信に失敗してもモックへは戻りません。これらの仮パスは、設計検討で採用した `/api/v1` ではありません。読み取り方針は [api-contract.md](api-contract.md) にあり、コードの定数はこの文書では変えていません。IndexedDB と Cloudflare へのデプロイは、`main` にはありません。Frontend CI の定義は [.github/workflows/frontend-ci.yml](../.github/workflows/frontend-ci.yml) です。この CI は TypeScript の型チェックと Vite のビルドだけを行い、Python は実行しません。
 
 `main` には、これとは別に FastAPI の試作が [frontend/src/api/main.py](../frontend/src/api/main.py) にあります。`GET /` は起動メッセージを返し、`GET /discounts` はメモリ上のサンプル割引を返し、`POST /discounts` は受け取った割引をその配列へ追加します。PostgreSQL にも D1 にも接続せず、認証もありません。CORS は全オリジンを許可しています。Python の依存関係を定義するファイルは無く、フロントエンドの `main.tsx` からも呼ばれていません。採用予定の Workers API ではありません。
 
@@ -209,7 +209,7 @@ API のリソース名とパスは、この文書では変更していません�
 - ユーザー認証の方式。廃止は未決定
 - お気に入りの対象。この文書の方針は店舗 ID。#19 は投稿。どちらに揃えるかは未調整
 - 通知の実装方式と、上記「将来の通知機能の検討事項」の各項目
-- D1 の migration、座標 NULL のチェック制約、インデックス。表と主な列の設計検討は [api-contract.md](api-contract.md)。旧設計の PostgreSQL 案をどう扱うかは未決定
+- D1 の migration 方式は Wrangler migrations を使う、という設計検討の記録が [api-contract.md](api-contract.md) にある。ファイルは未作成。配置先、座標 NULL のチェック制約、インデックスは未決定で [Issue #63](https://github.com/H-ampk/butterchickenCalai/issues/63)。旧設計の PostgreSQL 案をどう扱うかも未決定
 - 画像の扱い。読み取りパス、エラー形式、日時の保存形式は api-contract.md の設計検討に記録がある。外部公開の承認方式は未決定
 - 取り置き・予約の具体的な API（既存 Issue の範囲。この文書ではサーバー側で整合性を取る方針だけを書いている）
 
