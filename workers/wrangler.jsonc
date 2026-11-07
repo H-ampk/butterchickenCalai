@@ -16,7 +16,9 @@
       // ローカル専用の名前。リモート D1 の UUID である database_id は置かない。
       // Wrangler 4.61.1 以降は、--local の操作で database_id を省略できる。
       "binding": "DB",
-      "database_name": "butterchicken-calai-local"
+      "database_name": "butterchicken-calai-local",
+      // このファイルからの相対パス。実体は workers/migrations/。
+      "migrations_dir": "migrations"
     }
   ]
 }
