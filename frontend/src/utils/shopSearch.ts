@@ -1,4 +1,5 @@
 import type { Shop } from '../types/shop.ts'
+import { normalizeSearchText } from '../../../workers/src/searchText.ts'
 
 /**
  * 店舗名と住所の部分一致。
@@ -31,10 +32,6 @@ export function filterShops(shops: readonly Shop[], filter: ShopFilter): Shop[] 
   }
 
   return matched.filter((shop) => hasValidCoordinates(shop) === filter.hasCoordinates)
-}
-
-function normalizeSearchText(value: string): string {
-  return value.normalize('NFKC').trim().toLowerCase()
 }
 
 function hasValidCoordinates(shop: Shop): boolean {

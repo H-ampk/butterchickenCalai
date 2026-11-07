@@ -2,7 +2,7 @@
 
 この手順は、Vite でビルドした React アプリをローカルの Cloudflare Workers から開き、ローカル D1 への接続を確認するためのものです。Cloudflare へのログイン、本番用 D1 の作成、デプロイ、大学の利用許可は不要です。いずれも未了のままにしてください。
 
-店舗一覧と割引一覧の API、D1 のテーブル定義と migration は、この手順では作りません。それぞれ [Issue #45](https://github.com/H-ampk/butterchickenCalai/issues/45)、[Issue #42](https://github.com/H-ampk/butterchickenCalai/issues/42)、[Issue #63](https://github.com/H-ampk/butterchickenCalai/issues/63) の範囲です。
+店舗一覧と割引一覧の API は、この手順では作りません。[Issue #45](https://github.com/H-ampk/butterchickenCalai/issues/45) の範囲です。D1 の初期スキーマ、ローカルの migration、開発用 seed は [database/README.md](../database/README.md) です。
 
 ## ローカルと本番の違い
 
@@ -83,7 +83,7 @@ npm run dev
 
 ## ローカル D1
 
-初回の `npm run dev` または次のコマンドで、ローカル D1 のファイルが `workers/.wrangler/` に作られます。スキーマは空のままで構いません。店舗テーブルと割引テーブルは不要です。
+初回の `npm run dev` または次のコマンドで、ローカル D1 のファイルが `workers/.wrangler/` に作られます。この接続確認は `SELECT 1` だけであり、店舗テーブルと割引テーブルは作りません。テーブルと開発用データの手順は [database/README.md](../database/README.md) です。
 
 ```powershell
 if (Test-Path -LiteralPath '.\frontend\package.json') { cd . }
@@ -105,7 +105,9 @@ npx wrangler d1 execute DB --local --command "SELECT 1 AS ok;"
 
 成功すると、実行結果に `ok` と `1` が出ます。このコマンドはリモートへ接続しません。
 
-ローカル D1 のファイルを消して最初からにする場合は、Workers を止めてから `workers/.wrangler` を削除します。本番データは入っていません。
+スキーマをローカル D1 に入れるときは、同じ `workers` で `npm run d1:migrations:apply` のあと、必要なら `npm run d1:seed` を実行します。`--remote` は付けません。seed は架空データで、再実行すると主キーで失敗します。入れ直すときは `npm run d1:seed:reset` を先に実行します。詳細は [database/README.md](../database/README.md) です。
+
+Workers を止めて `workers/.wrangler` を削除すると、ローカル D1 を含む Wrangler のローカル状態が最初からになります。本番データは入っていません。削除したあとにテーブルが必要なら、migration を再度適用します。
 
 ## ヘルスチェック
 
@@ -149,7 +151,7 @@ npm run check
 npm test
 ```
 
-`workers` の `npm test` は、ヘルスチェックの単体テストと、ローカル Workers を起動する統合テストです。統合テストの前に `frontend` の `npm run build` が必要です。Frontend CI は `frontend` の型チェックとビルドだけを実行し、この統合テストは走らせません。
+`workers` の `npm test` は、ヘルスチェックの単体テスト、D1 のスキーマと seed のテスト、ローカル Workers を起動する統合テストです。スキーマのテストは一時ディレクトリのローカル D1 だけを使い、`workers/.wrangler` は変更しません。統合テストの前に `frontend` の `npm run build` が必要です。Frontend CI は `frontend` の型チェックとビルドだけを実行し、Workers のテストは走らせません。
 
 ## よくあるエラー
 
