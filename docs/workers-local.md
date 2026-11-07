@@ -15,7 +15,7 @@
 | 利用許可 | 不要 | 大学の利用許可は未了 |
 | ヘルスチェック | `GET /__health`。開発用であり、店舗・割引 API ではない | 公開時の扱いは未決定 |
 
-`workers/wrangler.jsonc` の `database_name` は `butterchicken-calai-local` です。これはローカル設定上の名前であり、Cloudflare 上のデータベースではありません。バインディング名は `DB` です。Issue #43 は PG-01 と同じバインディング名で接続する、と書いています。名前そのものは Issue 本文に無く、未マージの Draft PR #92 が候補として `DB` を書いています。API 契約の確定ではありません。
+`workers/wrangler.jsonc` の `database_name` は `butterchicken-calai-local` です。これはローカル設定上の名前であり、Cloudflare 上のデータベースではありません。バインディング名 `DB` は、このローカル設定にあります。D1 の具体的な列構造と migration は未完成です。座標の NULL 制約、インデックス、migration の配置先は [Issue #63](https://github.com/H-ampk/butterchickenCalai/issues/63) に残っています。設計検討の記録は [api-contract.md](api-contract.md) にあり、[Pull Request #92](https://github.com/H-ampk/butterchickenCalai/pull/92) は Draft ではありません。ローカルの `DB` は、その列構造が完成したことでも、チーム全体の正式レビューが完了したことでもありません。
 
 リモート D1 へつなぐ `"remote": true` と、`wrangler d1 execute` の `--remote` は使いません。`database_id` が無いため、リモート操作は失敗します。失敗したコマンドを、UUID を作って通さないでください。
 
