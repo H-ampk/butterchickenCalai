@@ -144,14 +144,20 @@ export const developmentDiscounts: readonly SeedDiscount[] = [
   },
 ]
 
+/** SQL の文字列リテラル。単一引用符は二重にして埋め込む。 */
 function sqlText(value: string): string {
   return `'${value.replaceAll("'", "''")}'`
 }
 
+/** null は SQL の NULL。文字列は sqlText と同じ引用を行う。 */
 function sqlNullableText(value: string | null): string {
   return value === null ? 'NULL' : sqlText(value)
 }
 
+/**
+ * null は SQL の NULL。
+ * 有限でない数は seed の不備として例外にする。
+ */
 function sqlNullableReal(value: number | null): string {
   if (value === null) {
     return 'NULL'

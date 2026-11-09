@@ -18,6 +18,10 @@ interface WranglerResult {
   output: string
 }
 
+/**
+ * 一時ディレクトリのローカル D1 に対して Wrangler を実行する。
+ * --remote は渡さない。終了コードと出力を返す。
+ */
 function runWrangler(persistTo: string, args: string[]): WranglerResult {
   assert.equal(args.includes('--remote'), false)
   const result = spawnSync(process.execPath, [wranglerJs, ...args, '--persist-to', persistTo], {
@@ -36,6 +40,10 @@ function runWrangler(persistTo: string, args: string[]): WranglerResult {
   }
 }
 
+/**
+ * ローカル D1 の JSON 出力を読む。
+ * コマンドが失敗したとき、または JSON 配列が無いときはテストを失敗させる。
+ */
 function executeJson(persistTo: string, sql: string): Array<{ results: Array<Record<string, unknown>> }> {
   const result = runWrangler(persistTo, ['d1', 'execute', 'DB', '--local', '--json', '--command', sql])
   assert.equal(result.status, 0, result.output)
@@ -44,6 +52,10 @@ function executeJson(persistTo: string, sql: string): Array<{ results: Array<Rec
   return JSON.parse(result.output.slice(start)) as Array<{ results: Array<Record<string, unknown>> }>
 }
 
+/**
+ * 実行が拒否され、エラーメッセージが pattern に一致することを確認する。
+ * 成功したときも、pattern に一致しないときもテストを失敗させる。
+ */
 async function rejects(run: () => Promise<unknown>, pattern: RegExp): Promise<void> {
   try {
     await run()

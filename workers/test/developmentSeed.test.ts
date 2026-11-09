@@ -30,6 +30,7 @@ test('seed search columns are the shared normalizer output', () => {
   assert.equal(sql.includes("'example-town'"), true)
 })
 
+/** 行コメントを除いた SQL。改行は LF にそろえる。 */
 function statementsOf(sql: string): string {
   return sql
     .replaceAll('\r\n', '\n')
