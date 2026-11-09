@@ -7,7 +7,6 @@ export type ReadPlan =
   | { type: 'invalid_request' }
   | { type: 'not_found' }
   | { type: 'method_not_allowed' }
-  | { type: 'unspecified' }
   | { type: 'not_implemented'; route: ReadRoute; query: ParsedQuery }
 
 /**
@@ -30,9 +29,6 @@ export function planReadApi(request: Request): ReadPlan {
   }
 
   const parsed = parseReadQuery(request.url, recognized.route)
-  if (!parsed.ok && parsed.reason === 'unspecified') {
-    return { type: 'unspecified' }
-  }
   if (!parsed.ok) {
     return { type: 'invalid_request' }
   }
@@ -40,14 +36,19 @@ export function planReadApi(request: Request): ReadPlan {
 }
 
 /**
- * 仕様に「未実装」と「limit / offset の重複」のステータスが無い。
- * 空の items、404、503 にはしない。完成した参照の成功応答でもない。
- * 本文は共通の internal_error に留め、重複規則や SQL は出さない。
+ * 検証を通過した参照が D1 未実装のときに返す暫定応答。
+ * HTTP 500 `internal_error` であり、空一覧、404、503 ではない。完成した参照の仕様でもない。
+ * 本文は共通の internal_error に留め、SQL は出さない。
  */
 export function provisionalHoldResponse(): Response {
   return errorResponse('internal_error')
 }
 
+/**
+ * 読み取りの計画を HTTP 応答にする。
+ * `/api/v1` の外は null を返し、静的アセットへ渡す。
+ * 検証済みで D1 未実装の GET は暫定の internal_error。
+ */
 export function responseForReadPlan(plan: ReadPlan): Response | null {
   switch (plan.type) {
     case 'outside':
@@ -58,7 +59,6 @@ export function responseForReadPlan(plan: ReadPlan): Response | null {
       return errorResponse('not_found')
     case 'method_not_allowed':
       return errorResponse('method_not_allowed', { allow: 'GET' })
-    case 'unspecified':
     case 'not_implemented':
       return provisionalHoldResponse()
     default: {
@@ -68,6 +68,10 @@ export function responseForReadPlan(plan: ReadPlan): Response | null {
   }
 }
 
+/**
+ * 参照 API の入口。経路外は null。
+ * 計画の作成で例外が出たときは、例外文を含めない internal_error を返す。
+ */
 export function respondToReadApi(
   request: Request,
   plan: (request: Request) => ReadPlan = planReadApi,

@@ -26,6 +26,10 @@ const READ_ERROR_MESSAGE: Record<ReadErrorCode, string> = {
   service_unavailable: 'データベースに接続できません。',
 }
 
+/**
+ * 共通エラー JSON を返す。
+ * `code` に対応する HTTP ステータスと固定の `message` だけを載せる。追加ヘッダは `extraHeaders`。
+ */
 export function errorResponse(code: ReadErrorCode, extraHeaders?: HeadersInit): Response {
   const headers = new Headers(extraHeaders)
   headers.set('content-type', 'application/json; charset=utf-8')

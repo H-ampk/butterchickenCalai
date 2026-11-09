@@ -7,6 +7,10 @@ export interface Env {
   ASSETS?: Fetcher
 }
 
+/**
+ * `/__health`、`/api/v1`、それ以外の静的アセットの順に振り分ける。
+ * URL を解釈できないときは internal_error。アセットが無い未知パスは 404。
+ */
 export async function handleRequest(request: Request, env: Env): Promise<Response> {
   let pathname: string
   try {

@@ -10,6 +10,7 @@ const frontendDist = path.resolve(workersDir, '../frontend/dist')
 const port = 8791
 const origin = `http://127.0.0.1:${port}`
 
+/** Vite の成果物 `index.html` があるかを返す。無いときは false で、例外にはしない。 */
 async function distExists(): Promise<boolean> {
   try {
     await access(path.join(frontendDist, 'index.html'))
@@ -63,6 +64,10 @@ async function stopWrangler(child: ChildProcess): Promise<void> {
   child.kill('SIGTERM')
 }
 
+/**
+ * Wrangler のログに待受 URL が出るまで待つ。
+ * 制限時間内に起動しない、またはプロセスが先に終わったときは例外にする。
+ */
 async function waitForReady(child: ChildProcess): Promise<void> {
   let logs = ''
   const ready = new Promise<void>((resolve, reject) => {

@@ -1,4 +1,4 @@
-import { hasInvalidPercentEncoding } from './percentEncoding.ts'
+import { canDecodePercentEncoded, hasInvalidPercentEncoding } from './percentEncoding.ts'
 
 export type ReadRoute =
   | { name: 'shops' }
@@ -13,15 +13,10 @@ export type RouteRecognition =
   | { kind: 'unmatched' }
   | { kind: 'matched'; route: ReadRoute }
 
-function canDecode(segment: string): boolean {
-  try {
-    decodeURIComponent(segment)
-    return true
-  } catch {
-    return false
-  }
-}
-
+/**
+ * 復号済みのパスセグメントを 5 本の読み取り経路へ対応させる。
+ * 空の識別子や余分なセグメントは unmatched。識別子が UUID であることは要求しない。
+ */
 function matchDecoded(segments: readonly string[]): RouteRecognition {
   if (segments.length === 1 && segments[0] === 'shops') {
     return { kind: 'matched', route: { name: 'shops' } }
@@ -59,7 +54,7 @@ export function recognizeReadRoute(requestUrl: string): RouteRecognition {
 
   const parts = pathname.split('/')
   const rest = parts.slice(3)
-  if (rest.some((segment) => segment.length > 0 && (hasInvalidPercentEncoding(segment) || !canDecode(segment)))) {
+  if (rest.some((segment) => segment.length > 0 && (hasInvalidPercentEncoding(segment) || !canDecodePercentEncoded(segment)))) {
     return { kind: 'invalid_encoding' }
   }
   if (rest.some((segment) => segment.length === 0)) {

@@ -164,10 +164,15 @@ test('shop list reads q and normalizes it', () => {
   assert.deepEqual(tooLong, { ok: false, reason: 'invalid_request', field: 'q' })
 })
 
-test('duplicate q and unknown query parameters are invalid_request', () => {
+test('duplicate q and unknown query parameters are invalid_request', async () => {
   assert.equal(parseReadQuery(`${origin}/api/v1/shops?q=a&q=b`, { name: 'shops' }).ok, false)
   const duplicateQ = parseReadQuery(`${origin}/api/v1/shops?q=a&q=b`, { name: 'shops' })
   assert.deepEqual(duplicateQ, { ok: false, reason: 'invalid_request', field: 'q' })
+  const sameQ = parseReadQuery(`${origin}/api/v1/shops?q=a&q=a`, { name: 'shops' })
+  assert.deepEqual(sameQ, { ok: false, reason: 'invalid_request', field: 'q' })
+  const duplicateResponse = respondToReadApi(request('/api/v1/shops?q=a&q=b'))
+  assert.equal(duplicateResponse?.status, 400)
+  assertPublicError(await duplicateResponse!.text(), 'invalid_request')
 
   assert.deepEqual(parseReadQuery(`${origin}/api/v1/shops?cursor=1`, { name: 'shops' }), {
     ok: false,
@@ -202,33 +207,67 @@ test('duplicate q and unknown query parameters are invalid_request', () => {
   }), { ok: false, reason: 'invalid_request', field: 'unknown' })
 })
 
-test('duplicate limit or offset stays unspecified', () => {
-  assert.deepEqual(parseReadQuery(`${origin}/api/v1/shops?limit=20&limit=20`, { name: 'shops' }), {
-    ok: false,
-    reason: 'unspecified',
-    field: 'limit',
+test('duplicate limit or offset is invalid_request even when the values match', async () => {
+  const shops: ReadRoute = { name: 'shops' }
+  const duplicates: Array<[string, 'limit' | 'offset']> = [
+    ['/api/v1/shops?limit=20&limit=50', 'limit'],
+    ['/api/v1/shops?limit=20&limit=20', 'limit'],
+    ['/api/v1/shops?offset=0&offset=10', 'offset'],
+    ['/api/v1/shops?offset=0&offset=0', 'offset'],
+    ['/api/v1/discounts?limit=20&limit=20', 'limit'],
+    ['/api/v1/shops/dev-shop-01/discounts?offset=0&offset=0', 'offset'],
+  ]
+  for (const [path, field] of duplicates) {
+    const route = recognizeReadRoute(`${origin}${path}`)
+    assert.equal(route.kind, 'matched', path)
+    if (route.kind !== 'matched') {
+      continue
+    }
+    assert.deepEqual(parseReadQuery(`${origin}${path}`, route.route), {
+      ok: false,
+      reason: 'invalid_request',
+      field,
+    }, path)
+    const plan = planReadApi(request(path))
+    assert.equal(plan.type, 'invalid_request', path)
+    const response = respondToReadApi(request(path))
+    assert.equal(response?.status, 400, path)
+    assertPublicError(await response!.text(), 'invalid_request')
+  }
+
+  assert.deepEqual(parseReadQuery(`${origin}/api/v1/shops?limit=20`, shops), {
+    ok: true,
+    query: { scope: 'list', limit: 20, offset: 0, q: null },
   })
-  assert.deepEqual(parseReadQuery(`${origin}/api/v1/discounts?offset=0&offset=1`, { name: 'discounts' }), {
-    ok: false,
-    reason: 'unspecified',
-    field: 'offset',
+  assert.deepEqual(parseReadQuery(`${origin}/api/v1/shops?offset=0`, shops), {
+    ok: true,
+    query: { scope: 'list', limit: 20, offset: 0, q: null },
   })
-  const plan = planReadApi(request('/api/v1/shops?limit=1&limit=2'))
-  assert.equal(plan.type, 'unspecified')
-  const response = respondToReadApi(request('/api/v1/shops?limit=1&limit=2'))
-  assert.ok(response)
-  assert.equal(response?.status === 200, false)
-  assert.equal(response?.status === 400, false)
-  assert.equal(response?.status === 404, false)
-  assert.equal(response?.status === 503, false)
 })
 
-test('invalid encoding in the query is invalid_request', () => {
-  assert.deepEqual(parseReadQuery(`${origin}/api/v1/shops?q=%ZZ`, { name: 'shops' }), {
-    ok: false,
-    reason: 'invalid_request',
-    field: 'encoding',
-  })
+test('invalid percent-encoding and invalid UTF-8 in the query are invalid_request', async () => {
+  const route: ReadRoute = { name: 'shops' }
+  for (const raw of ['q=%ZZ', 'q=%', 'q=%FF', 'q=%80', 'q=%C3%28', 'q=%E7%B4']) {
+    assert.deepEqual(parseReadQuery(`${origin}/api/v1/shops?${raw}`, route), {
+      ok: false,
+      reason: 'invalid_request',
+      field: 'encoding',
+    }, raw)
+    const response = respondToReadApi(request(`/api/v1/shops?${raw}`))
+    assert.equal(response?.status, 400, raw)
+    const body = await response!.text()
+    assertPublicError(body, 'invalid_request')
+    assert.equal(body.includes('\uFFFD'), false, raw)
+  }
+
+  const literal = parseReadQuery(`${origin}/api/v1/shops?q=${encodeURIComponent('紙屋町')}`, route)
+  assert.deepEqual(literal, { ok: true, query: { scope: 'list', limit: 20, offset: 0, q: '紙屋町' } })
+
+  const encoded = parseReadQuery(`${origin}/api/v1/shops?q=%E7%B4%99%E5%B1%8B%E7%94%BA&limit=20`, route)
+  assert.deepEqual(encoded, { ok: true, query: { scope: 'list', limit: 20, offset: 0, q: '紙屋町' } })
+
+  const ascii = parseReadQuery(`${origin}/api/v1/shops?q=Kamiya`, route)
+  assert.deepEqual(ascii, { ok: true, query: { scope: 'list', limit: 20, offset: 0, q: 'kamiya' } })
 })
 
 test('a validated read is not an empty list, a missing row, or a database outage', async () => {

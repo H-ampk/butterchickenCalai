@@ -2,7 +2,7 @@
 
 この手順は、Vite でビルドした React アプリをローカルの Cloudflare Workers から開き、ローカル D1 への接続を確認するためのものです。Cloudflare へのログイン、本番用 D1 の作成、デプロイ、大学の利用許可は不要です。いずれも未了のままにしてください。
 
-店舗と割引を D1 から返す処理、テーブル定義、migration は、この手順では作りません。`/api/v1` のパス識別と入力検証は Workers にあります。それぞれ [Issue #45](https://github.com/H-ampk/butterchickenCalai/issues/45)、[Issue #42](https://github.com/H-ampk/butterchickenCalai/issues/42)、[Issue #63](https://github.com/H-ampk/butterchickenCalai/issues/63) の範囲です。
+店舗と割引を D1 から返す処理は [Issue #45](https://github.com/H-ampk/butterchickenCalai/issues/45)、テーブル定義は [Issue #42](https://github.com/H-ampk/butterchickenCalai/issues/42)、migration は [Issue #63](https://github.com/H-ampk/butterchickenCalai/issues/63) の範囲です。この手順では、その読み取り、テーブル定義、migration は作りません。`/api/v1` のパス識別と入力検証は Workers にあります。
 
 ## ローカルと本番の違い
 
@@ -77,7 +77,7 @@ cd workers
 npm run dev
 ```
 
-待受は `http://127.0.0.1:8787` です。ブラウザでこの URL を開くと、ホーム画面が出ます。静的ファイルは Workers Static Assets が返します。`/__health` と `/api/v1` は Worker スクリプトを先に実行します。`/api/v1` は参照 API の基盤であり、D1 から店舗や割引は返しません。画面の URL ルーティングは使っていません。それ以外の未知のパスは、単一ページ向けの設定により `index.html` を返します。
+待受は `http://127.0.0.1:8787` です。ブラウザでこの URL を開くと、ホーム画面が出ます。静的ファイルは Workers Static Assets が返します。`/__health` と `/api/v1` は Worker スクリプトを先に実行します。`/api/v1` は参照 API の基盤であり、D1 から店舗や割引は返しません。検証を通過した GET は、D1 の読み取りが未実装のため、暫定的に HTTP 500 `internal_error` を返します。この応答は、正常な空一覧、リソース不在の 404、D1 接続障害の 503 とは違います。第1段階の暫定動作であり、完成した API の仕様ではありません。画面の URL ルーティングは使っていません。それ以外の未知のパスは、単一ページ向けの設定により `index.html` を返します。
 
 停止は、その PowerShell で Ctrl+C です。停止したあとの作業ディレクトリは `workers` です。次のブロックは、先頭でルートへ戻します。
 
