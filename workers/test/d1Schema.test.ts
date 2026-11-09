@@ -319,6 +319,22 @@ test('local D1 migration, constraints, and development seed', { timeout: 180_000
         .bind('t-ok')
         .first<{ created_at: string; updated_at: string }>()
       assert.deepEqual(acceptedUtc, { created_at: storedAt, updated_at: storedAt })
+      const fourDigitYears = [
+        '0000-01-01T00:00:00Z',
+        '0000-02-29T00:00:00Z',
+        '0096-02-29T12:00:00Z',
+        '0099-01-01T00:00:00Z',
+        '0099-02-29T00:00:00Z',
+        '0100-01-01T00:00:00Z',
+      ] as const
+      for (const [index, value] of fourDigitYears.entries()) {
+        await db.prepare(insertShop).bind(`t-year-${index}`, '', '', 0, 0, '', '', value, value).run()
+        const stored = await db
+          .prepare('SELECT created_at, updated_at FROM shops WHERE id = ?')
+          .bind(`t-year-${index}`)
+          .first<{ created_at: string; updated_at: string }>()
+        assert.deepEqual(stored, { created_at: value, updated_at: value })
+      }
       await rejects(
         () => db.prepare(insertShop).bind('t-null-created', '', '', 0, 0, '', '', null, storedAt).run(),
         /NOT NULL|shops_created_at_format/,

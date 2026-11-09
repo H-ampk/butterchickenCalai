@@ -1,9 +1,9 @@
+import { utcSecondTimestampMs } from '../utcTimestamp.ts'
+
 /**
  * 保存された UTC 日時。形式は YYYY-MM-DDTHH:mm:ssZ だけを正当とする。
- * 現在時刻は引数でのみ受け取る。
+ * 妥当性は utcSecondTimestampMs と同じ。現在時刻は引数でのみ受け取る。
  */
-
-const UTC_SECOND = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})Z$/
 
 export type StoredUtcInstant =
   | { kind: 'absent' }
@@ -23,38 +23,17 @@ export function instantMs(now: Date): number {
 
 /**
  * null は開始・終了の制限なし。文字列だけを保存形式として読む。
- * オフセット、小数秒、タイムゾーン無し、存在しない暦日は invalid。
+ * オフセット、小数秒、タイムゾーン無し、符号付きの年、存在しない暦日は invalid。
  */
 export function readStoredUtcInstant(value: unknown): StoredUtcInstant {
   if (value === null) {
     return { kind: 'absent' }
   }
-  if (typeof value !== 'string' || value.length !== 20) {
+  if (typeof value !== 'string') {
     return { kind: 'invalid' }
   }
-  const match = UTC_SECOND.exec(value)
-  if (match === null) {
-    return { kind: 'invalid' }
-  }
-  const year = Number(match[1])
-  const month = Number(match[2])
-  const day = Number(match[3])
-  const hour = Number(match[4])
-  const minute = Number(match[5])
-  const second = Number(match[6])
-  if (month < 1 || month > 12 || hour > 23 || minute > 59 || second > 59) {
-    return { kind: 'invalid' }
-  }
-  const ms = Date.UTC(year, month - 1, day, hour, minute, second)
-  const parsed = new Date(ms)
-  if (
-    parsed.getUTCFullYear() !== year ||
-    parsed.getUTCMonth() !== month - 1 ||
-    parsed.getUTCDate() !== day ||
-    parsed.getUTCHours() !== hour ||
-    parsed.getUTCMinutes() !== minute ||
-    parsed.getUTCSeconds() !== second
-  ) {
+  const ms = utcSecondTimestampMs(value)
+  if (ms === null) {
     return { kind: 'invalid' }
   }
   return { kind: 'instant', text: value, ms }

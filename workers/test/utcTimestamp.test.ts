@@ -28,3 +28,29 @@ test('rejects calendar-invalid dates that the database check still allows', () =
   assert.equal(isUtcSecondTimestamp('2026-02-29T00:00:00Z'), false)
   assert.equal(isUtcSecondTimestamp('2026-04-31T12:00:00Z'), false)
 })
+
+test('keeps years below 100 as the written four digits', () => {
+  const accepted = [
+    '0000-01-01T00:00:00Z',
+    '0000-02-29T00:00:00Z',
+    '0001-01-01T00:00:00Z',
+    '0004-02-29T00:00:00Z',
+    '0096-02-29T12:00:00Z',
+    '0099-01-01T00:00:00Z',
+    '2000-02-29T00:00:00Z',
+    '2024-02-29T00:00:00Z',
+  ]
+  const rejected = [
+    '0099-02-29T00:00:00Z',
+    '0100-02-29T00:00:00Z',
+    '1900-02-29T00:00:00Z',
+    '-001-01-01T00:00:00Z',
+    '+001-01-01T00:00:00Z',
+  ]
+  for (const value of accepted) {
+    assert.equal(isUtcSecondTimestamp(value), true, value)
+  }
+  for (const value of rejected) {
+    assert.equal(isUtcSecondTimestamp(value), false, value)
+  }
+})
