@@ -2,7 +2,7 @@
 
 この手順は、Vite でビルドした React アプリをローカルの Cloudflare Workers から開き、ローカル D1 への接続を確認するためのものです。Cloudflare へのログイン、本番用 D1 の作成、デプロイ、大学の利用許可は不要です。いずれも未了のままにしてください。
 
-店舗と割引を D1 から返す処理は [Issue #45](https://github.com/H-ampk/butterchickenCalai/issues/45)、テーブル定義は [Issue #42](https://github.com/H-ampk/butterchickenCalai/issues/42)、migration は [Issue #63](https://github.com/H-ampk/butterchickenCalai/issues/63) の範囲です。この手順では、その読み取り、テーブル定義、migration は作りません。`/api/v1` のパス識別と入力検証は Workers にあります。
+店舗と割引を D1 から返す処理は [Issue #45](https://github.com/H-ampk/butterchickenCalai/issues/45) の範囲です。テーブルと列の設計方針は [Issue #42](https://github.com/H-ampk/butterchickenCalai/issues/42) の `docs/api-contract.md` にあります。D1 のテーブル、migration、seed の実装は [Issue #63](https://github.com/H-ampk/butterchickenCalai/issues/63) の範囲です。この手順では、その読み取りも、テーブルの実装も、migration も作りません。`/api/v1` のパス識別と入力検証は Workers にあります。
 
 ## ローカルと本番の違い
 
