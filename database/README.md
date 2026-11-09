@@ -28,9 +28,53 @@
 
 `discounts` の列は `id`, `shop_id`, `subject`, `content`, `starts_at`, `ends_at`, `created_at`, `updated_at` です。`subject` と `content` は両方 NULL でも保存できます。空文字も保存できます。
 
-主キーは空でない `TEXT` です。UUID の形式は SQL では強制しません。seed は固定の UUID v4 です。書き込み API での採番方式は未実装で、識別子を UUID に限るかは [Pull Request #92](https://github.com/H-ampk/butterchickenCalai/pull/92) では未決定のままです。この PR は未マージであり、`docs/api-contract.md` はこの作業では変更していません。
+主キーは空でない `TEXT` です。UUID の形式は SQL では強制しません。seed は固定の UUID v4 です。書き込み API での採番方式は未実装で、識別子を UUID に限るかは、マージ済みの [Pull Request #92](https://github.com/H-ampk/butterchickenCalai/pull/92) が更新した `docs/api-contract.md` でも未決定です。このスキーマ作業では `docs/api-contract.md` を変更していません。
 
-`discounts.shop_id` は `shops.id` を参照し、`ON DELETE CASCADE` です。存在しない店舗への割引は拒否します。店舗を物理削除すると、その割引も削除されます。非公開にするだけでは行を削除しません。初期 migration に `PRAGMA foreign_keys` は書いていません。ローカル D1 では `PRAGMA foreign_keys` が 1 で、`PRAGMA foreign_key_check` は違反なしでした。
+`discounts.shop_id` は `shops.id` を参照し、`ON DELETE CASCADE` です。存在しない店舗への割引は拒否します。店舗を物理削除すると、その割引も削除されます。非公開にするだけでは行を削除しません。初期 migration に `PRAGMA foreign_keys` は書いていません。migration へは追加しません。
+
+## 外部キー
+
+Cloudflare D1 は、外部キー制約を既定で強制します。各クエリでの挙動は、SQLite の `PRAGMA foreign_keys = on` と同じです。D1 はクエリと migration を暗黙のトランザクションで実行するため、その場で `PRAGMA foreign_keys = off` にして強制を切ることはできません。一時的に検査を遅らせる手段は `PRAGMA defer_foreign_keys` です。このスキーマでは使いません。
+
+Wrangler 4.157.0 のローカル D1 も、バインディング `DB` では外部キーが有効です。確認は `workers` で行い、`workers/package.json` の `d1:check` と同じく `--local` を付けます。`--remote` は付けません。データベース名は `butterchicken-calai-local` です。先に `npm run d1:migrations:apply` でテーブルを作ります。
+
+```powershell
+if (Test-Path -LiteralPath '.\frontend\package.json') { cd . }
+elseif (Test-Path -LiteralPath '..\frontend\package.json') { cd .. }
+else { throw 'リポジトリのルート、frontend、workers のいずれかで実行してください。' }
+cd workers
+npx wrangler d1 execute DB --local --command "PRAGMA foreign_keys;"
+npx wrangler d1 execute DB --local --command "PRAGMA foreign_key_check;"
+```
+
+`PRAGMA foreign_keys` の結果が 1 なら、この接続では外部キーが有効です。`PRAGMA foreign_key_check` が行を返さなければ、既存の行に違反はありません。
+
+外部キー違反は、存在しない `shop_id` への `INSERT` で確認します。有効な接続では拒否され、行は残りません。
+
+```powershell
+if (Test-Path -LiteralPath '.\frontend\package.json') { cd . }
+elseif (Test-Path -LiteralPath '..\frontend\package.json') { cd .. }
+else { throw 'リポジトリのルート、frontend、workers のいずれかで実行してください。' }
+cd workers
+npx wrangler d1 execute DB --local --command "INSERT INTO discounts (id, shop_id, subject, content, starts_at, ends_at, created_at, updated_at) VALUES ('fk-missing', 'missing-shop', NULL, NULL, NULL, NULL, '2026-01-15T00:00:00Z', '2026-01-15T00:00:00Z');"
+```
+
+`ON DELETE CASCADE` は、確認用の店舗と割引を入れてから、その店舗だけを削除して見ます。割引の行が残っていなければ、連鎖削除が働いています。この例は `fk-shop` と `fk-discount` だけを消し、他の開発用データは消しません。
+
+```powershell
+if (Test-Path -LiteralPath '.\frontend\package.json') { cd . }
+elseif (Test-Path -LiteralPath '..\frontend\package.json') { cd .. }
+else { throw 'リポジトリのルート、frontend、workers のいずれかで実行してください。' }
+cd workers
+npx wrangler d1 execute DB --local --command "INSERT INTO shops (id, name, address, latitude, longitude, name_search, address_search, created_at, updated_at) VALUES ('fk-shop', '確認用', '', 1, 2, '確認用', '', '2026-01-15T00:00:00Z', '2026-01-15T00:00:00Z');"
+npx wrangler d1 execute DB --local --command "INSERT INTO discounts (id, shop_id, subject, content, starts_at, ends_at, created_at, updated_at) VALUES ('fk-discount', 'fk-shop', NULL, NULL, NULL, NULL, '2026-01-15T00:00:00Z', '2026-01-15T00:00:00Z');"
+npx wrangler d1 execute DB --local --command "DELETE FROM shops WHERE id = 'fk-shop';"
+npx wrangler d1 execute DB --local --command "SELECT COUNT(*) AS n FROM discounts WHERE id = 'fk-discount';"
+```
+
+最後の件数が 0 なら、CASCADE で割引も削除されています。続けて `PRAGMA foreign_key_check` を実行し、違反が残っていないことも見ます。同じ確認は、`workers` の `npm test` が一時ディレクトリのローカル D1 に対して行います。テストは `workers/.wrangler` を変更しません。
+
+`workers/.wrangler` にある SQLite ファイルを、外部キーが無効な別のクライアントで直接開くと、`PRAGMA foreign_keys` は 0 のままのことがあります。その接続では、存在しない店舗への割引も、店舗削除時の CASCADE も働きません。確認と開発用の変更は、上の `wrangler d1 execute DB --local` で行います。
 
 `updated_at` を進めるトリガーはありません。新規では `created_at` と `updated_at` に同じ日時を入れ、更新時は将来の Workers が `updated_at` を書き換えます。秒精度のため、同じ秒の複数回更新は区別しません。
 
@@ -114,9 +158,9 @@ Workers を止めて `workers/.wrangler` を削除すると、ローカル D1 �
 
 ## Issue #45 へ残すこと
 
-公開 GET はこのスキーマを読みますが、公開判定は SQL の CHECK には入れていません。
+公開 GET はこのスキーマを読みますが、公開判定は SQL の CHECK には入れていません。どの値を保存できるかは、この Issue #63 のスキーマの範囲です。どの行を公開するかは、Issue #45 の参照 API の範囲です。
 
-- 店舗名が JavaScript の `trim()` 後に空の店舗は公開しない
+- 店舗を公開する条件は、有効な緯度と経度の両方があることです。境界を含みます。店舗名が JavaScript の `trim()` 後に空でも、それだけでは公開対象から外しません。店舗名の空欄は、非公開条件に追加しません
 - 座標が両方 NULL の店舗は保存できるが、公開 GET からは外す
 - `subject` と `content` の少なくとも一方が `trim()` 後に空でないことを、公開 GET で要求する。両方空でも行は残す
 - 不正な保存日時の除外と詳細の 404
