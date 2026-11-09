@@ -25,7 +25,7 @@ Frontend CI
 型チェックと Vite のビルドのみ
 ```
 
-ブラウザ向けには、ホームと地図の画面枠があります。地図ライブラリは未導入で、地図領域はプレースホルダです。店舗一覧は開発用のモックデータで、API へは通信しません。IndexedDB と Cloudflare へのデプロイは、`main` にはありません。Frontend CI の定義は [.github/workflows/frontend-ci.yml](../.github/workflows/frontend-ci.yml) です。この CI は TypeScript の型チェックと Vite のビルドだけを行い、Python は実行しません。
+ブラウザ向けには、ホームと地図の画面枠があります。地図ライブラリは未導入で、地図領域はプレースホルダです。店舗一覧の既定は開発用のモックデータで、API へは通信しません。`VITE_DATA_SOURCE=api` のとき、現行の地図画面は `getShops()` を通し、仮パス `GET /shops` へだけ通信します。`GET /discounts` は [frontend/src/api/discounts.ts](../frontend/src/api/discounts.ts) の取得口にありますが、現行の画面からは呼ばれていません。通信に失敗してもモックへは戻りません。これらの仮パスは、設計検討で採用した `/api/v1` ではありません。読み取り方針は [api-contract.md](api-contract.md) にあり、コードの定数はこの文書では変えていません。IndexedDB と Cloudflare へのデプロイは、`main` にはありません。Frontend CI の定義は [.github/workflows/frontend-ci.yml](../.github/workflows/frontend-ci.yml) です。この CI は TypeScript の型チェックと Vite のビルドだけを行い、Python は実行しません。
 
 `main` には、これとは別に FastAPI の試作が [frontend/src/api/main.py](../frontend/src/api/main.py) にあります。`GET /` は起動メッセージを返し、`GET /discounts` はメモリ上のサンプル割引を返し、`POST /discounts` は受け取った割引をその配列へ追加します。PostgreSQL にも D1 にも接続せず、認証もありません。CORS は全オリジンを許可しています。Python の依存関係を定義するファイルは無く、フロントエンドの `main.tsx` からも呼ばれていません。採用予定の Workers API ではありません。
 
@@ -40,7 +40,7 @@ FastAPI（試作）
 
 ## 全体アーキテクチャ
 
-採用予定の構成です。図の各要素は、まだ構築していません。
+採用予定の構成です。本番の Cloudflare アカウント、リモート D1、デプロイは未構築です。ローカルの Wrangler は [workers-local.md](workers-local.md) です。
 
 ```text
 User Browser
@@ -108,7 +108,7 @@ PostgreSQL
 
 ## 店舗・割引情報の取得フロー
 
-次は採用予定の流れです。店舗・割引の API と D1 のスキーマは未実装であり、エンドポイントのパスはこの文書では決めません。ローカルの静的配信と接続確認は [workers-local.md](workers-local.md) です。パスは [api-contract.md](api-contract.md) のとおり、チームの合意まで確定しません。現行の `frontend/src/api/main.py` はメモリ上の配列を読み書きしており、この流れではありません。
+次は採用予定の流れです。店舗・割引の D1 読み取りとスキーマは未実装です。Workers には [api-contract.md](api-contract.md) の `/api/v1` 5 本を識別する基盤があり、店舗と割引の実データは返しません。設計検討で採用した読み取りパスは同じ文書の `/api/v1` です。これは学科長・企業側の承認や、チーム全体の正式レビューの完了ではありません。フロントエンドの仮パスは `GET /shops` と `GET /discounts` のままです。ローカルの静的配信と接続確認は [workers-local.md](workers-local.md) です。現行の `frontend/src/api/main.py` はメモリ上の配列を読み書きしており、この流れではありません。
 
 1. ブラウザが HTTPS で Workers にアクセスする。
 2. Workers が、Vite のビルド結果である静的ファイルを返す。
@@ -183,10 +183,10 @@ PostgreSQL
 
 採用予定へ移す場合、少なくとも次の調整が必要です。次の文書と Issue は、旧設計の記述を残しています。
 
-- [frontend/src/api/main.py](../frontend/src/api/main.py) は FastAPI の試作であり、`GET /discounts` と `POST /discounts` を定義している。[api-contract.md](api-contract.md) は、パスを合意まで確定しないと書いている。この試作のパスを、この文書では仕様として採用しない
+- [frontend/src/api/main.py](../frontend/src/api/main.py) は FastAPI の試作であり、`GET /discounts` と `POST /discounts` を定義している。[api-contract.md](api-contract.md) は、設計検討で `/api/v1` の読み取りを採用し、この試作のパスは仕様にしないと書いている。コード上の仮パスは残っている。この試作のパスを、この文書では仕様として採用しない
 - [backend/README.md](../backend/README.md) は、Python / FastAPI を予定し、現時点では未実装と書いている。`backend/` にはアプリケーションコードが無い。試作は `frontend/src/api/main.py` にあり、[Issue #6](https://github.com/H-ampk/butterchickenCalai/issues/6) の完了条件（依存関係、ルーター構成、環境変数、PostgreSQL 接続、起動手順）は満たしていない
 - [database/README.md](../database/README.md) は、PostgreSQL と検討中のテーブル名を書いている。`favorites` を含む
-- [docs/api-contract.md](api-contract.md) は、FastAPI のスキーマと TypeScript の型を揃えると書いている。エンドポイントと認証方式は未確定のままである
+- [docs/api-contract.md](api-contract.md) は、TypeScript の型、Workers の API、D1 の列を揃えると書いている。公開 GET を認証不要とする方針は設計検討の記録であり、書き込みの認証方式は [Issue #58](https://github.com/H-ampk/butterchickenCalai/issues/58) のまま未確定である。チーム全体の正式レビューの完了ではない
 - [frontend/.env.example](../frontend/.env.example) の `VITE_API_BASE_URL` は `http://localhost:8000` である
 - Issue テンプレートの対象領域は、Backend / FastAPI と Database / PostgreSQL である
 - [Issue #4](https://github.com/H-ampk/butterchickenCalai/issues/4) は、FastAPI のスキーマと TypeScript の型を揃える前提で API 仕様を策定する
@@ -209,8 +209,8 @@ API のリソース名とパスは、この文書では変更していません�
 - ユーザー認証の方式。廃止は未決定
 - お気に入りの対象。この文書の方針は店舗 ID。#19 は投稿。どちらに揃えるかは未調整
 - 通知の実装方式と、上記「将来の通知機能の検討事項」の各項目
-- D1 のテーブル定義と、旧設計の PostgreSQL 案をどう扱うか
-- API のエンドポイント、エラー形式、日時、画像の扱い（#4 の範囲）
+- D1 の migration 方式は Wrangler migrations を使う、という設計検討の記録が [api-contract.md](api-contract.md) にある。ファイルは未作成。配置先、座標 NULL のチェック制約、インデックスは未決定で [Issue #63](https://github.com/H-ampk/butterchickenCalai/issues/63)。旧設計の PostgreSQL 案をどう扱うかも未決定
+- 画像の扱い。読み取りパス、エラー形式、日時の保存形式は api-contract.md の設計検討に記録がある。外部公開の承認方式は未決定
 - 取り置き・予約の具体的な API（既存 Issue の範囲。この文書ではサーバー側で整合性を取る方針だけを書いている）
 
 ## 地図

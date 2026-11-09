@@ -1,22 +1,22 @@
 # Issue #45 の着手メモ
 
-この文書は API 仕様でも、D1 のスキーマでもありません。エンドポイント、JSON、エラー形式、テーブル定義は、ここでは決めません。
+この文書は API 仕様でも、D1 のスキーマでもありません。エンドポイント、JSON、エラー形式、テーブル定義は、ここでは決めません。開発責任者との設計検討で採用した読み取り方針は [api-contract.md](api-contract.md) にあります。それは学科長・企業側の承認や、チーム全体の正式レビューの完了ではありません。
 
-[Issue #45](https://github.com/H-ampk/butterchickenCalai/issues/45) の参照 API は未実装です。完了条件の「ローカル D1 の店舗と割引が取得できる」は、まだ満たしていません。
+[Issue #45](https://github.com/H-ampk/butterchickenCalai/issues/45) の参照 API は、D1 から店舗と割引を返す実装としては未完了です。Workers には 5 本のパスを識別し、クエリを検証し、共通のエラー JSON を返す基盤があります。この基盤は空の一覧を成功として返しません。検証を通過した GET は、暫定的に HTTP 500 `internal_error` を返します。これは正常な空一覧、リソース不在の 404、D1 接続障害の 503 ではなく、第1段階の暫定動作です。完成した API の仕様ではありません。完了条件の「ローカル D1 の店舗と割引が取得できる」は、まだ満たしていません。D1 の migration も未作成です。
 
 ## 依存の状態
 
 | 項目 | 状態 | 根拠 |
 | --- | --- | --- |
-| API のパスと入出力 | 未決定 | [#42](https://github.com/H-ampk/butterchickenCalai/issues/42) は Open。[api-contract.md](api-contract.md) はレビュー用草案で、サンプルのパスは候補 |
-| エラーレスポンス | 未決定 | 同じ草案の未合意事項。HTTP ステータスも確定していない |
-| D1 のテーブルと列 | 未決定 | [#63](https://github.com/H-ampk/butterchickenCalai/issues/63) は Open。`database/README.md` の表名は検討中 |
+| API のパスと入出力 | 設計検討で採用した方針がある。識別と検証の基盤はある。D1 の読み取りは未完了 | [#42](https://github.com/H-ampk/butterchickenCalai/issues/42) は Open。[api-contract.md](api-contract.md) は `/api/v1` の読み取り 5 本を記録している。フロントの仮パスは `GET /shops` と `GET /discounts` のままで、`/api/v1` ではない |
+| エラーレスポンス | 設計検討で採用した方針がある。共通 JSON の基盤はある | 同じ文書の統一 JSON と、400、404、405、500、503。503 を返す D1 接続処理は、まだ参照 API へ接続していない |
+| D1 のテーブルと列 | 設計検討で表と主な列の方針がある。migration は未作成 | `shops` と `discounts`、TEXT 主キー、外部キー、日時 TEXT、検索列は api-contract.md。座標 NULL のチェック制約、インデックス、migration の配置は [#63](https://github.com/H-ampk/butterchickenCalai/issues/63)。[database/README.md](../database/README.md) は検討中の記述のまま |
 | Workers と D1 のバインディング | ローカルの接続確認のみ | [#43](https://github.com/H-ampk/butterchickenCalai/issues/43)。バインディング名 `DB` はローカル設定。リモートの `database_id` は無い。店舗・割引の読み取りは未実装 |
-| migration | 未実装 | `database/` に SQL は無い |
-| フロントの取得口 | 実装済み。パスは仮 | [#81](https://github.com/H-ampk/butterchickenCalai/pull/81)。`GET /shops` と `GET /discounts` は仮パス |
-| 販売期間の通常一覧 | 方針はあり、Workers への適用は #50 | 終了後は通常一覧から外し、行は削除しない。境界時刻などは未決定 |
+| migration | 未実装 | `database/` に SQL は無い。Wrangler migrations を使い、ローカル seed とは分ける、という方針だけが api-contract.md にある |
+| フロントの取得口 | 実装済み。パスは仮 | [#81](https://github.com/H-ampk/butterchickenCalai/pull/81)。`GET /shops` と `GET /discounts` は仮パスであり、設計検討の `/api/v1` ではない |
+| 販売期間の通常一覧 | 境界は設計検討で採用。Workers への適用は未完了 | `startsAt <= now < endsAt`。`endsAt` ちょうどは終了。`startsAt` の NULL は開始制限なし。終了後に行を残して通常一覧から外すことは、以前からの方針。比較の実装は [#50](https://github.com/H-ampk/butterchickenCalai/issues/50)。現行の `classifyDiscountForNormalList` は、その境界の一部を未決定のままにしている |
 
-合意として扱える方針は次だけです。
+以前から合意として扱う方針は次です。
 
 - 共有データは Cloudflare Workers の API 経由で D1 に置く方針であり、ブラウザから D1 を直接更新しない
 - FastAPI の試作は採用予定の API ではない
@@ -24,15 +24,16 @@
 - 販売終了後の割引は通常一覧から外し、D1 の行は削除しない。比較の実装は [#50](https://github.com/H-ampk/butterchickenCalai/issues/50)
 - 登録、更新、削除は #45 では作らない
 
-## 契約が確定してから実装する項目
+上の表にあるパス、エラー、販売期間の境界は、設計検討の方針であり、この一覧の「以前からの合意」には含めません。
 
-パスと列名が合意されるまで、次を Workers のルートや migration として追加しません。
+## まだ追加していない項目
 
-- 店舗一覧、店舗詳細、割引一覧、店舗に紐づく割引一覧、割引詳細のルート
-- D1 からの SELECT と、0 件、該当 ID なし、読み取り失敗の HTTP への対応
-- バインディング名と migration の適用手順
-- 販売期間の除外 SQL。これは #50 と重なるため、#45 の準備コードでは行わない
-- ローカル D1 を使った統合テスト
+設計検討の方針は api-contract.md にあります。#45 の D1 読み取りと #63 の migration は未完了です。Workers にあるのはパスの識別、入力検証、エラー JSON です。次はまだありません。
+
+- D1 からの SELECT と、0 件の成功応答、該当 ID なし、読み取り失敗を完成した参照として返す処理
+- バインディング名の変更と migration の適用手順
+- 販売期間の除外 SQL。これは #50 と重なるため、参照の基盤では行わない
+- ローカル D1 の店舗・割引を使う統合テスト
 
 ## 今回置いたコード
 

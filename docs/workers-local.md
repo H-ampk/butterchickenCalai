@@ -2,7 +2,7 @@
 
 この手順は、Vite でビルドした React アプリをローカルの Cloudflare Workers から開き、ローカル D1 への接続を確認するためのものです。Cloudflare へのログイン、本番用 D1 の作成、デプロイ、大学の利用許可は不要です。いずれも未了のままにしてください。
 
-店舗一覧と割引一覧の API は、この手順では作りません。[Issue #45](https://github.com/H-ampk/butterchickenCalai/issues/45) の範囲です。D1 の初期スキーマ、ローカルの migration、開発用 seed は [database/README.md](../database/README.md) です。
+設計方針は [Issue #42](https://github.com/H-ampk/butterchickenCalai/issues/42) の `docs/api-contract.md` にあります。店舗と割引を D1 から返す処理は [Issue #45](https://github.com/H-ampk/butterchickenCalai/issues/45) の Workers 参照 API です。D1 のテーブル、migration、seed は [Issue #63](https://github.com/H-ampk/butterchickenCalai/issues/63) の範囲で、手順は [database/README.md](../database/README.md) です。`/api/v1` のパス識別と入力検証は Workers にあります。D1 からの読み取りは未実装です。検証を通過した GET は、暫定的に HTTP 500 `internal_error` を返します。この起動手順では migration を適用せず、`GET /__health` でローカル D1 への接続だけを確認します。
 
 ## ローカルと本番の違い
 
@@ -15,7 +15,7 @@
 | 利用許可 | 不要 | 大学の利用許可は未了 |
 | ヘルスチェック | `GET /__health`。開発用であり、店舗・割引 API ではない | 公開時の扱いは未決定 |
 
-`workers/wrangler.jsonc` の `database_name` は `butterchicken-calai-local` です。これはローカル設定上の名前であり、Cloudflare 上のデータベースではありません。バインディング名は `DB` です。Issue #43 は PG-01 と同じバインディング名で接続する、と書いています。名前そのものは Issue 本文に無く、未マージの Draft PR #92 が候補として `DB` を書いています。API 契約の確定ではありません。
+`workers/wrangler.jsonc` の `database_name` は `butterchicken-calai-local` です。これはローカル設定上の名前であり、Cloudflare 上のデータベースではありません。バインディング名 `DB` は、このローカル設定にあります。`migrations_dir` は `migrations` で、初期スキーマは `workers/migrations/0001_initial.sql` です。`shops` と `discounts`、座標が両方 NULL か両方とも範囲内であること、`discounts.shop_id` の外部キーは、この migration にあります。インデックスは `idx_discounts_shop_id` だけです。`name_search` と `address_search` のインデックス、および一覧の `created_at DESC, id ASC` 用の複合インデックスは未実装です。設計検討の記録は [api-contract.md](api-contract.md) にあり、[Pull Request #92](https://github.com/H-ampk/butterchickenCalai/pull/92) はマージ済みです。ローカルの `DB` があることは、チーム全体の正式レビューが完了したことではありません。
 
 リモート D1 へつなぐ `"remote": true` と、`wrangler d1 execute` の `--remote` は使いません。`database_id` が無いため、リモート操作は失敗します。失敗したコマンドを、UUID を作って通さないでください。
 
@@ -77,7 +77,7 @@ cd workers
 npm run dev
 ```
 
-待受は `http://127.0.0.1:8787` です。ブラウザでこの URL を開くと、ホーム画面が出ます。静的ファイルは Workers Static Assets が返します。`/__health` だけ Worker スクリプトを先に実行します。画面の URL ルーティングは使っていません。未知のパスは、単一ページ向けの設定により `index.html` を返します。
+待受は `http://127.0.0.1:8787` です。ブラウザでこの URL を開くと、ホーム画面が出ます。静的ファイルは Workers Static Assets が返します。`/__health` と `/api/v1` は Worker スクリプトを先に実行します。`/api/v1` は参照 API の基盤であり、D1 から店舗や割引は返しません。検証を通過した GET は、D1 の読み取りが未実装のため、暫定的に HTTP 500 `internal_error` を返します。この応答は、正常な空一覧、リソース不在の 404、D1 接続障害の 503 とは違います。第1段階の暫定動作であり、完成した API の仕様ではありません。画面の URL ルーティングは使っていません。それ以外の未知のパスは、単一ページ向けの設定により `index.html` を返します。
 
 停止は、その PowerShell で Ctrl+C です。停止したあとの作業ディレクトリは `workers` です。次のブロックは、先頭でルートへ戻します。
 
@@ -151,7 +151,7 @@ npm run check
 npm test
 ```
 
-`workers` の `npm test` は、ヘルスチェックの単体テスト、D1 のスキーマと seed のテスト、ローカル Workers を起動する統合テストです。スキーマのテストは一時ディレクトリのローカル D1 だけを使い、`workers/.wrangler` は変更しません。統合テストの前に `frontend` の `npm run build` が必要です。Frontend CI は `frontend` の型チェックとビルドだけを実行し、Workers のテストは走らせません。
+`workers` の `npm test` は、ヘルスチェックと参照 API 基盤の単体テスト、D1 のスキーマと seed のテスト、およびローカル Workers を起動する統合テストです。スキーマのテストは一時ディレクトリのローカル D1 だけを使い、`workers/.wrangler` は変更しません。統合テストの前に `frontend` の `npm run build` が必要です。Frontend CI は `frontend` の型チェックとビルドだけを実行し、Workers のテストは走らせません。
 
 ## よくあるエラー
 
@@ -161,7 +161,7 @@ npm test
 | `database_id` が無い、というリモート向けのエラー | `--remote` を外す。`npm run d1:check` は `--local` 付きである |
 | ブラウザが Cloudflare のログインを求める、または本番 URL を作ろうとする | `wrangler deploy` と `wrangler login` は実行しない |
 | `http://127.0.0.1:8787` に接続できない | 先に `workers` で `npm run dev` が動いているか確認する。ポート 8787 を他のプロセスが使っている場合は、そのプロセスを止める |
-| `/__health` が HTML を返す | `workers/wrangler.jsonc` の `run_worker_first` に `/__health` があるか確認する。静的配信の単一ページ設定は、この指定が無いと未知のパスへ `index.html` を返す |
+| `/__health` や `/api/v1` が HTML を返す | `workers/wrangler.jsonc` の `run_worker_first` に `/__health` と `/api/v1` があるか確認する。静的配信の単一ページ設定は、この指定が無いと未知のパスへ `index.html` を返す |
 | `npm run dev` が `frontend` で Workers にならない | 想定どおり。Vite の開発サーバーは `frontend`、Workers は `workers` |
 
 この手順で秘密情報は使いません。環境ファイルは新しく作りません。個人情報、API キー、Secrets は、ソース、`VITE_` で始まる環境変数、ログ、`.env` に置きません。ローカルの Workers だけで秘密情報が必要になった場合は、`workers/.dev.vars` に置きます。Wrangler がローカル起動時にこのファイルを読みます。`.gitignore` は `.dev.vars` と `.dev.vars.*` を除外しているため、Git 管理しません。`workers/.wrangler/` はローカル D1 などの状態であり、秘密情報の保存先にはしません。これも Git 管理しません。
