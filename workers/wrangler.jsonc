@@ -9,7 +9,7 @@
     "directory": "../frontend/dist",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/__health"]
+    "run_worker_first": ["/__health", "/api/v1", "/api/v1/*"]
   },
   "d1_databases": [
     {

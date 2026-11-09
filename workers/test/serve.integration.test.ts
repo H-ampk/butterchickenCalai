@@ -135,6 +135,17 @@ test('local Workers serves the Vite build and a schema-free D1 health check', as
     database: 'connected',
   })
 
+  const shopList = await fetch(`${origin}/api/v1/shops`)
+  assert.notEqual(shopList.status, 200)
+  const shopType = shopList.headers.get('content-type') ?? ''
+  assert.match(shopType, /json/)
+  const shopBody = await shopList.text()
+  assert.equal(shopBody.includes('"items"'), false)
+  assert.equal(/select/i.test(shopBody), false)
+
+  const shopPost = await fetch(`${origin}/api/v1/shops`, { method: 'POST' })
+  assert.equal(shopPost.status, 405)
+
   const builtHtml = await readFile(path.join(frontendDist, 'index.html'), 'utf8')
   assert.match(builtHtml, /\/assets\//)
 })
