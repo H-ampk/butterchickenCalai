@@ -108,7 +108,7 @@ PostgreSQL
 
 ## 店舗・割引情報の取得フロー
 
-次は採用予定の流れです。店舗・割引の API と D1 のスキーマは未実装です。設計検討で採用した読み取りパスは [api-contract.md](api-contract.md) の `/api/v1` です。これは学科長・企業側の承認や、チーム全体の正式レビューの完了ではありません。現行コードの仮パスは `GET /shops` と `GET /discounts` であり、`/api/v1` ではありません。ローカルの静的配信と接続確認は [workers-local.md](workers-local.md) です。現行の `frontend/src/api/main.py` はメモリ上の配列を読み書きしており、この流れではありません。
+次は採用予定の流れです。店舗・割引の D1 読み取りとスキーマは未実装です。Workers には [api-contract.md](api-contract.md) の `/api/v1` 5 本を識別する基盤があり、店舗と割引の実データは返しません。設計検討で採用した読み取りパスは同じ文書の `/api/v1` です。これは学科長・企業側の承認や、チーム全体の正式レビューの完了ではありません。フロントエンドの仮パスは `GET /shops` と `GET /discounts` のままです。ローカルの静的配信と接続確認は [workers-local.md](workers-local.md) です。現行の `frontend/src/api/main.py` はメモリ上の配列を読み書きしており、この流れではありません。
 
 1. ブラウザが HTTPS で Workers にアクセスする。
 2. Workers が、Vite のビルド結果である静的ファイルを返す。
