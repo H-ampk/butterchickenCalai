@@ -9,6 +9,7 @@
 -- 時刻全体を一つの GLOB にすると、この D1 の SQLite は
 -- "LIKE or GLOB pattern too complex" で正当な値も拒否する。
 -- そのため区切り文字、printf による桁、CAST による範囲に分けている。
+-- printf('%04d', 負数) は符号を幅に含める。年の先頭が ASCII 数字であることも要求し、符号付きの年を拒否する。
 -- CHECK の結果が NULL になると SQLite は制約を通過させる。
 -- NOT NULL の日時は typeof が text であることを先に要求し、
 -- NULL を許す日時は IS NULL を先に分けている。
@@ -53,6 +54,7 @@ CREATE TABLE shops (
     AND substr(created_at, 14, 1) = ':'
     AND substr(created_at, 17, 1) = ':'
     AND substr(created_at, 20, 1) = 'Z'
+    AND substr(created_at, 1, 1) BETWEEN '0' AND '9'
     AND printf('%04d', CAST(substr(created_at, 1, 4) AS INTEGER)) = substr(created_at, 1, 4)
     AND printf('%02d', CAST(substr(created_at, 6, 2) AS INTEGER)) = substr(created_at, 6, 2)
     AND printf('%02d', CAST(substr(created_at, 9, 2) AS INTEGER)) = substr(created_at, 9, 2)
@@ -74,6 +76,7 @@ CREATE TABLE shops (
     AND substr(updated_at, 14, 1) = ':'
     AND substr(updated_at, 17, 1) = ':'
     AND substr(updated_at, 20, 1) = 'Z'
+    AND substr(updated_at, 1, 1) BETWEEN '0' AND '9'
     AND printf('%04d', CAST(substr(updated_at, 1, 4) AS INTEGER)) = substr(updated_at, 1, 4)
     AND printf('%02d', CAST(substr(updated_at, 6, 2) AS INTEGER)) = substr(updated_at, 6, 2)
     AND printf('%02d', CAST(substr(updated_at, 9, 2) AS INTEGER)) = substr(updated_at, 9, 2)
@@ -110,6 +113,7 @@ CREATE TABLE discounts (
     AND substr(created_at, 14, 1) = ':'
     AND substr(created_at, 17, 1) = ':'
     AND substr(created_at, 20, 1) = 'Z'
+    AND substr(created_at, 1, 1) BETWEEN '0' AND '9'
     AND printf('%04d', CAST(substr(created_at, 1, 4) AS INTEGER)) = substr(created_at, 1, 4)
     AND printf('%02d', CAST(substr(created_at, 6, 2) AS INTEGER)) = substr(created_at, 6, 2)
     AND printf('%02d', CAST(substr(created_at, 9, 2) AS INTEGER)) = substr(created_at, 9, 2)
@@ -131,6 +135,7 @@ CREATE TABLE discounts (
     AND substr(updated_at, 14, 1) = ':'
     AND substr(updated_at, 17, 1) = ':'
     AND substr(updated_at, 20, 1) = 'Z'
+    AND substr(updated_at, 1, 1) BETWEEN '0' AND '9'
     AND printf('%04d', CAST(substr(updated_at, 1, 4) AS INTEGER)) = substr(updated_at, 1, 4)
     AND printf('%02d', CAST(substr(updated_at, 6, 2) AS INTEGER)) = substr(updated_at, 6, 2)
     AND printf('%02d', CAST(substr(updated_at, 9, 2) AS INTEGER)) = substr(updated_at, 9, 2)
@@ -154,6 +159,7 @@ CREATE TABLE discounts (
       AND substr(starts_at, 14, 1) = ':'
       AND substr(starts_at, 17, 1) = ':'
       AND substr(starts_at, 20, 1) = 'Z'
+      AND substr(starts_at, 1, 1) BETWEEN '0' AND '9'
       AND printf('%04d', CAST(substr(starts_at, 1, 4) AS INTEGER)) = substr(starts_at, 1, 4)
       AND printf('%02d', CAST(substr(starts_at, 6, 2) AS INTEGER)) = substr(starts_at, 6, 2)
       AND printf('%02d', CAST(substr(starts_at, 9, 2) AS INTEGER)) = substr(starts_at, 9, 2)
@@ -178,6 +184,7 @@ CREATE TABLE discounts (
       AND substr(ends_at, 14, 1) = ':'
       AND substr(ends_at, 17, 1) = ':'
       AND substr(ends_at, 20, 1) = 'Z'
+      AND substr(ends_at, 1, 1) BETWEEN '0' AND '9'
       AND printf('%04d', CAST(substr(ends_at, 1, 4) AS INTEGER)) = substr(ends_at, 1, 4)
       AND printf('%02d', CAST(substr(ends_at, 6, 2) AS INTEGER)) = substr(ends_at, 6, 2)
       AND printf('%02d', CAST(substr(ends_at, 9, 2) AS INTEGER)) = substr(ends_at, 9, 2)

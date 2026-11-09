@@ -283,6 +283,42 @@ test('local D1 migration, constraints, and development seed', { timeout: 180_000
         () => db.prepare(insertShop).bind('t-second60', '', '', 0, 0, '', '', '2026-01-01T00:00:60Z', storedAt).run(),
         /shops_created_at_format/,
       )
+      const signedYears = ['-001-01-01T00:00:00Z', '+001-01-01T00:00:00Z'] as const
+      for (const signedYear of signedYears) {
+        const mark = signedYear.startsWith('-') ? 'neg' : 'pos'
+        await rejects(
+          () => db.prepare(insertShop).bind(`t-${mark}-created`, '', '', 0, 0, '', '', signedYear, storedAt).run(),
+          /shops_created_at_format/,
+        )
+        await rejects(
+          () => db.prepare(insertShop).bind(`t-${mark}-updated`, '', '', 0, 0, '', '', storedAt, signedYear).run(),
+          /shops_updated_at_format/,
+        )
+        await rejects(
+          () =>
+            db.prepare(insertDiscount).bind(`t-${mark}-d-created`, 't-ok', null, null, null, null, signedYear, storedAt).run(),
+          /discounts_created_at_format/,
+        )
+        await rejects(
+          () =>
+            db.prepare(insertDiscount).bind(`t-${mark}-d-updated`, 't-ok', null, null, null, null, storedAt, signedYear).run(),
+          /discounts_updated_at_format/,
+        )
+        await rejects(
+          () =>
+            db.prepare(insertDiscount).bind(`t-${mark}-start`, 't-ok', null, null, signedYear, null, storedAt, storedAt).run(),
+          /discounts_starts_at_format/,
+        )
+        await rejects(
+          () => db.prepare(insertDiscount).bind(`t-${mark}-end`, 't-ok', null, null, null, signedYear, storedAt, storedAt).run(),
+          /discounts_ends_at_format/,
+        )
+      }
+      const acceptedUtc = await db
+        .prepare('SELECT created_at, updated_at FROM shops WHERE id = ?')
+        .bind('t-ok')
+        .first<{ created_at: string; updated_at: string }>()
+      assert.deepEqual(acceptedUtc, { created_at: storedAt, updated_at: storedAt })
       await rejects(
         () => db.prepare(insertShop).bind('t-null-created', '', '', 0, 0, '', '', null, storedAt).run(),
         /NOT NULL|shops_created_at_format/,
