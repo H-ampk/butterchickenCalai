@@ -5,8 +5,10 @@ import { DatabaseSync } from 'node:sqlite'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { handleRequest } from '../src/index.ts'
+import { normalizeSearchText } from '../src/searchText.ts'
 import type { ReadDatabase } from '../src/readApi/d1Read.ts'
-import { classifyDatabaseError } from '../src/readApi/d1Read.ts'
+import { classifyDatabaseError, D1_LIKE_PATTERN_MAX_BYTES, shopSearchStatement, utf8ByteLength } from '../src/readApi/d1Read.ts'
+import { listPublicDiscounts, listPublicShops } from '../src/readApi/publicPage.ts'
 import { respondToReadApi } from '../src/readApi/handleReadApi.ts'
 
 const workersDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -231,14 +233,163 @@ test('database failures stay distinct and do not echo SQL', async () => {
   assert.equal(sqlBody.includes('SELECT'), false)
   assert.equal(classifyDatabaseError(new Error('no such table')), 'internal_error')
 
+  const messageOnly = await respondToReadApi(request('/api/v1/shops/any'), {
+    database: failingDatabase(new Error('D1_ERROR: Network connection lost. timeout while reading secrets')),
+    now: SEED_NOW,
+  })
+  assert.equal(messageOnly!.status, 500)
+  const messageBody = await messageOnly!.text()
+  assert.equal(messageBody.includes('Network'), false)
+  assert.equal(messageBody.includes('timeout'), false)
+  assert.equal(messageBody.includes('secrets'), false)
+  assert.equal(classifyDatabaseError(new Error('Network connection lost')), 'internal_error')
+
+  const busy = new Error('busy') as Error & { code: string }
+  busy.code = 'SQLITE_BUSY'
   const down = await respondToReadApi(request('/api/v1/shops/any'), {
-    database: failingDatabase(new Error('D1_ERROR: Network connection lost')),
+    database: failingDatabase(busy),
     now: SEED_NOW,
   })
   assert.equal(down!.status, 503)
   const downBody = await down!.text()
-  assert.equal(downBody.includes('Network'), false)
-  assert.equal(classifyDatabaseError(new Error('Network connection lost')), 'service_unavailable')
+  assert.equal(downBody.includes('SQLITE_BUSY'), false)
+  assert.equal(downBody.includes('busy'), false)
+  const caused = new Error('wrapped')
+  ;(caused as Error & { cause: { code: number } }).cause = { code: 5 }
+  assert.equal(classifyDatabaseError(caused), 'service_unavailable')
+  const retryable = new Error('again') as Error & { retryable: boolean }
+  retryable.retryable = true
+  assert.equal(classifyDatabaseError(retryable), 'service_unavailable')
+  assert.equal(classifyDatabaseError(new Error('SQLITE_BUSY')), 'internal_error')
+})
+
+test('shop search keeps LIKE for short patterns and instr when the pattern exceeds 50 bytes', async () => {
+  const database = new DatabaseSync(':memory:')
+  database.exec(readFileSync(path.join(workersDir, 'migrations', '0001_initial.sql'), 'utf8'))
+  const statements: string[] = []
+  const recording = recordingDatabase(database, statements)
+
+  const asciiLike = 'a'.repeat(D1_LIKE_PATTERN_MAX_BYTES - 2)
+  const asciiInstr = 'b'.repeat(D1_LIKE_PATTERN_MAX_BYTES - 1)
+  const kanjiLike = '店'.repeat(16)
+  const kanjiInstr = '町'.repeat(17)
+  const wideLike = 'Ｃ'.repeat(D1_LIKE_PATTERN_MAX_BYTES - 2)
+  const wideInstr = 'Ｄ'.repeat(D1_LIKE_PATTERN_MAX_BYTES - 1)
+  const percentLike = '%'.repeat(24)
+  const percentInstr = '_'.repeat(25)
+  assert.equal(utf8ByteLength(shopSearchStatement(asciiLike).params[0] ?? ''), D1_LIKE_PATTERN_MAX_BYTES)
+  assert.equal(utf8ByteLength(`%${asciiInstr}%`), D1_LIKE_PATTERN_MAX_BYTES + 1)
+  assert.equal(utf8ByteLength(shopSearchStatement(kanjiLike).params[0] ?? ''), D1_LIKE_PATTERN_MAX_BYTES)
+  assert.ok(utf8ByteLength(`%${kanjiInstr}%`) > D1_LIKE_PATTERN_MAX_BYTES)
+  assert.equal(shopSearchStatement(asciiLike).sql.includes('LIKE'), true)
+  assert.equal(shopSearchStatement(asciiInstr).sql.includes('instr('), true)
+  assert.equal(shopSearchStatement(kanjiLike).sql.includes('LIKE'), true)
+  assert.equal(shopSearchStatement(kanjiInstr).sql.includes('instr('), true)
+  assert.equal(shopSearchStatement(wideLike.normalize('NFKC')).sql.includes('LIKE'), true)
+  assert.equal(shopSearchStatement(wideInstr.normalize('NFKC')).sql.includes('instr('), true)
+  assert.equal(shopSearchStatement(percentLike).sql.includes('LIKE'), true)
+  assert.equal(shopSearchStatement(percentInstr).sql.includes('instr('), true)
+  assert.equal(shopSearchStatement(percentLike).params[0]?.includes('%'), true)
+  assert.equal(shopSearchStatement(percentInstr).params[0]?.includes('%'), false)
+
+  const samples = [
+    ['ascii-like', asciiLike, asciiLike, 'like'],
+    ['ascii-instr', asciiInstr, asciiInstr, 'instr'],
+    ['kanji-like', kanjiLike, kanjiLike, 'like'],
+    ['kanji-instr', kanjiInstr, kanjiInstr, 'instr'],
+    ['wide-like', wideLike.normalize('NFKC'), wideLike, 'like'],
+    ['wide-instr', wideInstr.normalize('NFKC'), wideInstr, 'instr'],
+    ['percent-like', percentLike, percentLike, 'like'],
+    ['percent-instr', percentInstr, percentInstr, 'instr'],
+  ] as const
+  for (const [id, stored] of samples) {
+    database
+      .prepare(
+        `INSERT INTO shops (id, name, address, latitude, longitude, name_search, address_search, created_at, updated_at)
+         VALUES (?, ?, '', 1, 1, ?, '', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`,
+      )
+      .run(id, stored, normalizeSearchText(stored))
+  }
+
+  for (const [id, stored, query, mode] of samples) {
+    statements.length = 0
+    const response = await respondToReadApi(request(`/api/v1/shops?q=${encodeURIComponent(query)}`), {
+      database: recording,
+      now: SEED_NOW,
+    })
+    const body = await readJson(response!)
+    const ids = (body.items as Array<{ id: string }>).map((item) => item.id)
+    assert.deepEqual(ids, [id], query)
+    const sql = statements.at(-1) ?? ''
+    assert.equal(sql.includes(mode === 'like' ? 'LIKE' : 'instr('), true, query)
+    assert.equal(sql.includes(mode === 'like' ? 'instr(' : 'LIKE'), false, query)
+    const all = database.prepare('SELECT id, name, address, latitude, longitude, created_at FROM shops').all()
+    const expected = listPublicShops(all as never[], { q: stored, limit: 20, offset: 0 })
+    assert.deepEqual(body.items, expected.items, query)
+    assert.equal(body.total, expected.total, query)
+  }
+})
+
+test('discount reads join shops past the 100 bind limit without changing the page', async () => {
+  const database = new DatabaseSync(':memory:')
+  database.exec('PRAGMA foreign_keys = ON')
+  database.exec(readFileSync(path.join(workersDir, 'migrations', '0001_initial.sql'), 'utf8'))
+  const statements: Array<{ sql: string; binds: number }> = []
+  const recording = {
+    prepare(sql: string) {
+      const statement = database.prepare(sql)
+      return {
+        bind(...values: unknown[]) {
+          return {
+            async all<T>() {
+              statements.push({ sql, binds: values.length })
+              return { success: true, results: statement.all(...(values as never[])) as T[] }
+            },
+          }
+        },
+      }
+    },
+  }
+  for (const count of [100, 101]) {
+    database.exec('DELETE FROM discounts')
+    database.exec('DELETE FROM shops')
+    statements.length = 0
+    for (let index = 0; index < count; index += 1) {
+      const shopId = `shop-${String(index).padStart(3, '0')}`
+      const createdAt = `2026-01-01T00:00:${String(index % 60).padStart(2, '0')}Z`
+      database
+        .prepare(
+          `INSERT INTO shops (id, name, address, latitude, longitude, name_search, address_search, created_at, updated_at)
+           VALUES (?, ?, '', 35, 135, ?, '', ?, ?)`,
+        )
+        .run(shopId, shopId, shopId, createdAt, createdAt)
+      database
+        .prepare(
+          `INSERT INTO discounts (id, shop_id, subject, content, starts_at, ends_at, created_at, updated_at)
+           VALUES (?, ?, ?, '本文', NULL, NULL, ?, ?)`,
+        )
+        .run(`discount-${String(index).padStart(3, '0')}`, shopId, shopId, createdAt, createdAt)
+    }
+    const response = await respondToReadApi(request('/api/v1/discounts?limit=20&offset=20'), {
+      database: recording,
+      now: SEED_NOW,
+    })
+    const body = await readJson(response!)
+    const shops = database.prepare('SELECT id, name, address, latitude, longitude, created_at FROM shops').all()
+    const discounts = database
+      .prepare('SELECT id, shop_id, subject, content, starts_at, ends_at, created_at FROM discounts')
+      .all()
+    const expected = listPublicDiscounts(discounts as never[], shops as never[], { limit: 20, offset: 20 }, SEED_NOW)
+    assert.equal(body.total, count)
+    assert.deepEqual(body.items, expected.items, String(count))
+    assert.equal(body.limit, 20)
+    assert.equal(body.offset, 20)
+    const listCall = statements.find((entry) => entry.sql.includes('FROM discounts'))
+    assert.ok(listCall)
+    assert.equal(listCall.sql.includes('JOIN shops'), true)
+    assert.equal(listCall.sql.includes(' IN '), false)
+    assert.equal(listCall.binds <= 100, true)
+  }
 })
 
 test('handleRequest reads the five paths from the bound database', async () => {
@@ -278,6 +429,24 @@ function scriptedDatabase(shops: unknown[], discounts: unknown[]): ReadDatabase 
       }
     },
   } as ReadDatabase
+}
+
+function recordingDatabase(db: DatabaseSync, statements: string[]): ReadDatabase {
+  return {
+    prepare(sql: string) {
+      const statement = db.prepare(sql)
+      return {
+        bind(...values: unknown[]) {
+          return {
+            async all<T>() {
+              statements.push(sql)
+              return { success: true, results: statement.all(...(values as never[])) as T[] }
+            },
+          }
+        },
+      }
+    },
+  }
 }
 
 function failingDatabase(error: Error): ReadDatabase {
