@@ -2,7 +2,7 @@
 
 この手順は、Vite でビルドした React アプリをローカルの Cloudflare Workers から開き、ローカル D1 への接続を確認するためのものです。Cloudflare へのログイン、本番用 D1 の作成、デプロイ、大学の利用許可は不要です。いずれも未了のままにしてください。
 
-店舗と割引を D1 から返す処理は [Issue #45](https://github.com/H-ampk/butterchickenCalai/issues/45) の範囲です。テーブルと列の設計方針は [Issue #42](https://github.com/H-ampk/butterchickenCalai/issues/42) の `docs/api-contract.md` にあります。D1 のテーブル、migration、seed の実装は [Issue #63](https://github.com/H-ampk/butterchickenCalai/issues/63) の範囲です。この手順では、その読み取りも、テーブルの実装も、migration も作りません。`/api/v1` のパス識別と入力検証は Workers にあります。
+設計方針は [Issue #42](https://github.com/H-ampk/butterchickenCalai/issues/42) の `docs/api-contract.md` にあります。店舗と割引を D1 から返す処理は [Issue #45](https://github.com/H-ampk/butterchickenCalai/issues/45) の Workers 参照 API です。D1 のテーブル、migration、seed は [Issue #63](https://github.com/H-ampk/butterchickenCalai/issues/63) の範囲で、手順は [database/README.md](../database/README.md) です。`/api/v1` のパス識別と入力検証は Workers にあります。D1 からの読み取りは未実装です。検証を通過した GET は、暫定的に HTTP 500 `internal_error` を返します。この起動手順では migration を適用せず、`GET /__health` でローカル D1 への接続だけを確認します。
 
 ## ローカルと本番の違い
 
@@ -15,7 +15,7 @@
 | 利用許可 | 不要 | 大学の利用許可は未了 |
 | ヘルスチェック | `GET /__health`。開発用であり、店舗・割引 API ではない | 公開時の扱いは未決定 |
 
-`workers/wrangler.jsonc` の `database_name` は `butterchicken-calai-local` です。これはローカル設定上の名前であり、Cloudflare 上のデータベースではありません。バインディング名 `DB` は、このローカル設定にあります。D1 の具体的な列構造と migration は未完成です。座標の NULL 制約、インデックス、migration の配置先は [Issue #63](https://github.com/H-ampk/butterchickenCalai/issues/63) に残っています。設計検討の記録は [api-contract.md](api-contract.md) にあり、[Pull Request #92](https://github.com/H-ampk/butterchickenCalai/pull/92) は Draft ではありません。ローカルの `DB` は、その列構造が完成したことでも、チーム全体の正式レビューが完了したことでもありません。
+`workers/wrangler.jsonc` の `database_name` は `butterchicken-calai-local` です。これはローカル設定上の名前であり、Cloudflare 上のデータベースではありません。バインディング名 `DB` は、このローカル設定にあります。`migrations_dir` は `migrations` で、初期スキーマは `workers/migrations/0001_initial.sql` です。`shops` と `discounts`、座標が両方 NULL か両方とも範囲内であること、`discounts.shop_id` の外部キーは、この migration にあります。インデックスは `idx_discounts_shop_id` だけです。`name_search` と `address_search` のインデックス、および一覧の `created_at DESC, id ASC` 用の複合インデックスは未実装です。設計検討の記録は [api-contract.md](api-contract.md) にあり、[Pull Request #92](https://github.com/H-ampk/butterchickenCalai/pull/92) はマージ済みです。ローカルの `DB` があることは、チーム全体の正式レビューが完了したことではありません。
 
 リモート D1 へつなぐ `"remote": true` と、`wrangler d1 execute` の `--remote` は使いません。`database_id` が無いため、リモート操作は失敗します。失敗したコマンドを、UUID を作って通さないでください。
 
@@ -83,7 +83,7 @@ npm run dev
 
 ## ローカル D1
 
-初回の `npm run dev` または次のコマンドで、ローカル D1 のファイルが `workers/.wrangler/` に作られます。スキーマは空のままで構いません。店舗テーブルと割引テーブルは不要です。
+初回の `npm run dev` または次のコマンドで、ローカル D1 のファイルが `workers/.wrangler/` に作られます。この接続確認は `SELECT 1` だけであり、店舗テーブルと割引テーブルは作りません。テーブルと開発用データの手順は [database/README.md](../database/README.md) です。
 
 ```powershell
 if (Test-Path -LiteralPath '.\frontend\package.json') { cd . }
@@ -105,7 +105,9 @@ npx wrangler d1 execute DB --local --command "SELECT 1 AS ok;"
 
 成功すると、実行結果に `ok` と `1` が出ます。このコマンドはリモートへ接続しません。
 
-ローカル D1 のファイルを消して最初からにする場合は、Workers を止めてから `workers/.wrangler` を削除します。本番データは入っていません。
+スキーマをローカル D1 に入れるときは、同じ `workers` で `npm run d1:migrations:apply` のあと、必要なら `npm run d1:seed` を実行します。`--remote` は付けません。seed は架空データで、再実行すると主キーで失敗します。入れ直すときは `npm run d1:seed:reset` を先に実行します。詳細は [database/README.md](../database/README.md) です。
+
+Workers を止めて `workers/.wrangler` を削除すると、ローカル D1 を含む Wrangler のローカル状態が最初からになります。本番データは入っていません。削除したあとにテーブルが必要なら、migration を再度適用します。
 
 ## ヘルスチェック
 
@@ -149,7 +151,7 @@ npm run check
 npm test
 ```
 
-`workers` の `npm test` は、ヘルスチェックと参照 API 基盤の単体テスト、およびローカル Workers を起動する統合テストです。統合テストの前に `frontend` の `npm run build` が必要です。Frontend CI は `frontend` の型チェックとビルドだけを実行し、Workers のテストは走らせません。
+`workers` の `npm test` は、ヘルスチェックと参照 API 基盤の単体テスト、D1 のスキーマと seed のテスト、およびローカル Workers を起動する統合テストです。スキーマのテストは一時ディレクトリのローカル D1 だけを使い、`workers/.wrangler` は変更しません。統合テストの前に `frontend` の `npm run build` が必要です。Frontend CI は `frontend` の型チェックとビルドだけを実行し、Workers のテストは走らせません。
 
 ## よくあるエラー
 

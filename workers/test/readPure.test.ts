@@ -26,6 +26,7 @@ import {
 } from '../src/readApi/publicPage.ts'
 import { hasValidShopCoordinates, isValidLatitude, isValidLongitude } from '../src/readApi/shopVisibility.ts'
 import { classifySaleWindow, readStoredUtcInstant } from '../src/readApi/utcInstant.ts'
+import { isUtcSecondTimestamp } from '../src/utcTimestamp.ts'
 
 const NOW_TEXT = '2026-11-09T12:00:00Z'
 const NOW_MS = Date.parse(NOW_TEXT)
@@ -314,6 +315,43 @@ test('invalid stored datetimes and impossible ranges are not a sale phase', () =
   assert.equal(readStoredUtcInstant('2000-02-29T23:59:59Z').kind, 'instant')
   assert.equal(readStoredUtcInstant('2024-02-29T12:00:00Z').kind, 'instant')
   assert.equal(readStoredUtcInstant(null).kind, 'absent')
+
+  const lowYears = [
+    ['0000-01-01T00:00:00Z', true],
+    ['0000-02-29T00:00:00Z', true],
+    ['0001-01-01T00:00:00Z', true],
+    ['0004-02-29T00:00:00Z', true],
+    ['0096-02-29T12:00:00Z', true],
+    ['0099-01-01T00:00:00Z', true],
+    ['0099-02-29T00:00:00Z', false],
+    ['0100-02-29T00:00:00Z', false],
+    ['1900-02-29T00:00:00Z', false],
+    ['2000-02-29T00:00:00Z', true],
+    ['2024-02-29T00:00:00Z', true],
+    ['-001-01-01T00:00:00Z', false],
+    ['+001-01-01T00:00:00Z', false],
+  ] as const
+  for (const [value, accepted] of lowYears) {
+    assert.equal(isUtcSecondTimestamp(value), accepted, value)
+    assert.equal(readStoredUtcInstant(value).kind, accepted ? 'instant' : 'invalid', value)
+  }
+  const year99 = readStoredUtcInstant('0099-12-31T23:59:59Z')
+  const year100 = readStoredUtcInstant('0100-01-01T00:00:00Z')
+  assert.equal(year99.kind, 'instant')
+  assert.equal(year100.kind, 'instant')
+  if (year99.kind === 'instant' && year100.kind === 'instant') {
+    assert.equal(year99.ms < year100.ms, true)
+    const nowMs = year99.ms
+    assert.equal(classifySaleWindow('0099-12-31T23:59:59Z', '0100-01-01T00:00:00Z', nowMs), 'during')
+    assert.equal(classifySaleWindow('0099-12-31T23:59:59Z', '0100-01-01T00:00:00Z', year100.ms), 'after')
+    assert.equal(classifySaleWindow('0100-01-01T00:00:00Z', '0100-01-02T00:00:00Z', year100.ms), 'during')
+    assert.equal(classifySaleWindow('0099-01-01T00:00:00Z', '0099-12-31T23:59:59Z', nowMs), 'after')
+  }
+  assert.equal(classifySaleWindow('0099-02-29T00:00:00Z', '0100-01-01T00:00:00Z', 0), 'invalid')
+  assert.equal(classifySaleWindow('0001-01-02T00:00:00Z', '0001-01-01T00:00:00Z', 0), 'invalid')
+  assert.equal(classifySaleWindow(null, null, year99.kind === 'instant' ? year99.ms : 0), 'during')
+  assert.throws(() => classifySaleWindow(null, null, Number.POSITIVE_INFINITY), /finite timestamp/)
+  assert.throws(() => classifySaleWindow(null, null, Number.NaN), /finite timestamp/)
 
   for (const [startsAt, endsAt] of [
     [NOW_TEXT, NOW_TEXT],

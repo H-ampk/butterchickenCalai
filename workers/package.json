@@ -10,7 +10,12 @@
     "dev": "node scripts/ensure-frontend-dist.ts && wrangler dev --local --ip 127.0.0.1 --port 8787",
     "check": "tsc --noEmit",
     "test": "node --test --test-reporter spec test/*.test.ts",
-    "d1:check": "wrangler d1 execute DB --local --command \"SELECT 1 AS ok;\""
+    "d1:check": "wrangler d1 execute DB --local --command \"SELECT 1 AS ok;\"",
+    "d1:migrations:list": "wrangler d1 migrations list DB --local",
+    "d1:migrations:apply": "wrangler d1 migrations apply DB --local",
+    "d1:seed:generate": "node scripts/generate-development-seed.ts",
+    "d1:seed": "wrangler d1 execute DB --local --file seeds/development.sql",
+    "d1:seed:reset": "wrangler d1 execute DB --local --file seeds/reset-development.sql"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "5.20261104.1",
