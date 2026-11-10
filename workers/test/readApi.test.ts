@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { errorResponse } from '../src/readApi/errors.ts'
-import { planReadApi, provisionalHoldResponse, respondToReadApi } from '../src/readApi/handleReadApi.ts'
+import { planReadApi, respondToReadApi } from '../src/readApi/handleReadApi.ts'
 import { parseReadQuery } from '../src/readApi/parseQuery.ts'
 import { recognizeReadRoute, type ReadRoute } from '../src/readApi/recognizeRoute.ts'
 import { handleRequest, type Env } from '../src/index.ts'
@@ -100,7 +100,7 @@ test('unsupported methods on the five paths are method_not_allowed', () => {
 })
 
 test('method_not_allowed uses the public error JSON', async () => {
-  const response = respondToReadApi(request('/api/v1/shops', 'POST'))
+  const response = await respondToReadApi(request('/api/v1/shops', 'POST'))
   assert.ok(response)
   assert.equal(response?.status, 405)
   assert.equal(response?.headers.get('allow'), 'GET')
@@ -108,15 +108,15 @@ test('method_not_allowed uses the public error JSON', async () => {
 })
 
 test('unmatched API paths are not_found and do not fall through', async () => {
-  const response = respondToReadApi(request('/api/v1/unknown'))
+  const response = await respondToReadApi(request('/api/v1/unknown'))
   assert.ok(response)
   assert.equal(response?.status, 404)
   assertPublicError(await response.text(), 'not_found')
 })
 
-test('provisional paths outside /api/v1 are left to static assets', () => {
-  assert.equal(respondToReadApi(request('/shops')), null)
-  assert.equal(respondToReadApi(request('/discounts')), null)
+test('paths outside /api/v1 are left to static assets', async () => {
+  assert.equal(await respondToReadApi(request('/shops')), null)
+  assert.equal(await respondToReadApi(request('/discounts')), null)
 })
 
 test('list queries use the specified limit and offset defaults and bounds', () => {
@@ -170,7 +170,7 @@ test('duplicate q and unknown query parameters are invalid_request', async () =>
   assert.deepEqual(duplicateQ, { ok: false, reason: 'invalid_request', field: 'q' })
   const sameQ = parseReadQuery(`${origin}/api/v1/shops?q=a&q=a`, { name: 'shops' })
   assert.deepEqual(sameQ, { ok: false, reason: 'invalid_request', field: 'q' })
-  const duplicateResponse = respondToReadApi(request('/api/v1/shops?q=a&q=b'))
+  const duplicateResponse = await respondToReadApi(request('/api/v1/shops?q=a&q=b'))
   assert.equal(duplicateResponse?.status, 400)
   assertPublicError(await duplicateResponse!.text(), 'invalid_request')
 
@@ -230,7 +230,7 @@ test('duplicate limit or offset is invalid_request even when the values match', 
     }, path)
     const plan = planReadApi(request(path))
     assert.equal(plan.type, 'invalid_request', path)
-    const response = respondToReadApi(request(path))
+    const response = await respondToReadApi(request(path))
     assert.equal(response?.status, 400, path)
     assertPublicError(await response!.text(), 'invalid_request')
   }
@@ -253,7 +253,7 @@ test('invalid percent-encoding and invalid UTF-8 in the query are invalid_reques
       reason: 'invalid_request',
       field: 'encoding',
     }, raw)
-    const response = respondToReadApi(request(`/api/v1/shops?${raw}`))
+    const response = await respondToReadApi(request(`/api/v1/shops?${raw}`))
     assert.equal(response?.status, 400, raw)
     const body = await response!.text()
     assertPublicError(body, 'invalid_request')
@@ -270,10 +270,10 @@ test('invalid percent-encoding and invalid UTF-8 in the query are invalid_reques
   assert.deepEqual(ascii, { ok: true, query: { scope: 'list', limit: 20, offset: 0, q: 'kamiya' } })
 })
 
-test('a validated read is not an empty list, a missing row, or a database outage', async () => {
+test('a validated read without a database binding is internal_error', async () => {
   const plan = planReadApi(request('/api/v1/shops?q=%E7%B4%99%E5%B1%8B%E7%94%BA'))
-  assert.equal(plan.type, 'not_implemented')
-  if (plan.type === 'not_implemented' && plan.query.scope === 'list') {
+  assert.equal(plan.type, 'ready')
+  if (plan.type === 'ready' && plan.query.scope === 'list') {
     assert.equal(plan.query.q, '紙屋町')
     assert.equal(plan.query.limit, 20)
     assert.equal(plan.query.offset, 0)
@@ -281,7 +281,7 @@ test('a validated read is not an empty list, a missing row, or a database outage
     assert.fail('shop list was not planned')
   }
 
-  const response = respondToReadApi(request('/api/v1/shops'))
+  const response = await respondToReadApi(request('/api/v1/shops'))
   assert.ok(response)
   assert.equal(response?.status === 200, false)
   assert.equal(response?.status === 404, false)
@@ -289,18 +289,18 @@ test('a validated read is not an empty list, a missing row, or a database outage
   const body = await response.text()
   assert.equal(body.includes('"items"'), false)
   assertPublicError(body, 'internal_error')
-  assert.equal(response?.status, provisionalHoldResponse().status)
+  assert.equal(response?.status, 500)
 })
 
-test('detail parameters are available before the unimplemented read', () => {
+test('detail parameters are available before the database read', () => {
   const shop = planReadApi(request('/api/v1/shops/dev-shop-01'))
-  assert.equal(shop.type, 'not_implemented')
-  if (shop.type === 'not_implemented') {
+  assert.equal(shop.type, 'ready')
+  if (shop.type === 'ready') {
     assert.deepEqual(shop.route, { name: 'shop', shopId: 'dev-shop-01' })
     assert.deepEqual(shop.query, { scope: 'detail' })
   }
   const discount = planReadApi(request('/api/v1/discounts/discount_example_01'))
-  if (discount.type === 'not_implemented') {
+  if (discount.type === 'ready') {
     assert.deepEqual(discount.route, { name: 'discount', discountId: 'discount_example_01' })
   } else {
     assert.fail('discount detail was not planned')
@@ -308,8 +308,10 @@ test('detail parameters are available before the unimplemented read', () => {
 })
 
 test('error JSON does not echo thrown internal text', async () => {
-  const response = respondToReadApi(request('/api/v1/shops'), () => {
-    throw new Error('SELECT password FROM secrets; sqlite D1 stack')
+  const response = await respondToReadApi(request('/api/v1/shops'), {
+    plan: () => {
+      throw new Error('SELECT password FROM secrets; sqlite D1 stack')
+    },
   })
   assert.ok(response)
   assert.equal(response?.status, 500)
@@ -328,7 +330,7 @@ test('service_unavailable keeps the same public shape', async () => {
   assertPublicError(await response.text(), 'service_unavailable')
 })
 
-test('the read API modules do not query D1', () => {
+test('routing modules do not query D1', () => {
   const files = [
     'percentEncoding.ts',
     'errors.ts',
@@ -340,8 +342,10 @@ test('the read API modules do not query D1', () => {
     const source = readFileSync(new URL(`../src/readApi/${file}`, import.meta.url), 'utf8')
     assert.equal(/\bSELECT\b|prepare\(/.test(source), false, file)
   }
-  const handler = readFileSync(new URL('../src/readApi/handleReadApi.ts', import.meta.url), 'utf8')
-  assert.equal(handler.includes('service_unavailable'), false)
+  const reader = readFileSync(new URL('../src/readApi/d1Read.ts', import.meta.url), 'utf8')
+  assert.equal(reader.includes('SELECT'), true)
+  assert.equal(reader.includes('.bind('), true)
+  assert.equal(/\$\{[^}]*q/.test(reader), false)
 })
 
 test('static assets still receive paths outside the read API', async () => {
