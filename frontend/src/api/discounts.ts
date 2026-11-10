@@ -4,7 +4,7 @@ import { readFetchedOrigin, tagFetchedRecords, type ListOrigin } from './listOri
 import { mockDiscounts } from './mockDiscounts.ts'
 import {
   ApiResponseShapeError,
-  PROVISIONAL_DISCOUNT_LIST_PATH,
+  DISCOUNT_LIST_PATH,
   fetchProvisionalList,
   isRecord,
   resolveDataSource,
@@ -15,7 +15,7 @@ export type { NormalDiscountListDecision } from './discountPeriod.ts'
 
 /**
  * 割引の取得口。画面の一覧は今回作らない。
- * パスは Issue #42 で未合意の候補 GET /discounts。
+ * API モードのパスは GET /api/v1/discounts。
  * 販売終了後の行は消さない。通常一覧に出すかは classifyDiscountForNormalList で判定する。
  */
 export async function getDiscounts(): Promise<Discount[]> {
@@ -27,7 +27,7 @@ export async function getDiscounts(): Promise<Discount[]> {
     )
   }
 
-  const items = await fetchProvisionalList(PROVISIONAL_DISCOUNT_LIST_PATH)
+  const items = await fetchProvisionalList(DISCOUNT_LIST_PATH)
   return tagFetchedRecords(items.map((item) => parseDiscount(item)), 'api')
 }
 
@@ -47,16 +47,34 @@ function parseDiscount(value: unknown): Discount {
   if (!isRecord(value)) {
     throw new ApiResponseShapeError('割引の要素がオブジェクトではありません。')
   }
-  return {
+  const discount: Discount = {
     id: requiredString(value, 'id'),
     shopId: requiredString(value, 'shopId'),
-    subject: requiredString(value, 'subject'),
-    content: requiredString(value, 'content'),
+    subject: requiredNullableString(value, 'subject'),
+    content: requiredNullableString(value, 'content'),
     startsAt: requiredNullableString(value, 'startsAt'),
     endsAt: requiredNullableString(value, 'endsAt'),
-    createdAt: requiredString(value, 'createdAt'),
-    updatedAt: requiredString(value, 'updatedAt'),
   }
+  const createdAt = optionalString(value, 'createdAt')
+  const updatedAt = optionalString(value, 'updatedAt')
+  if (createdAt !== undefined) {
+    discount.createdAt = createdAt
+  }
+  if (updatedAt !== undefined) {
+    discount.updatedAt = updatedAt
+  }
+  return discount
+}
+
+function optionalString(record: Record<string, unknown>, key: string): string | undefined {
+  if (!Object.hasOwn(record, key)) {
+    return undefined
+  }
+  const value = record[key]
+  if (typeof value !== 'string') {
+    throw new ApiResponseShapeError(`割引の ${key} が文字列ではありません。`)
+  }
+  return value
 }
 
 function requiredString(record: Record<string, unknown>, key: string): string {

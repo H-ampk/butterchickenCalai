@@ -12,15 +12,15 @@ import {
   ApiNetworkError,
   ApiResponseShapeError,
   DataSourceConfigError,
-  PROVISIONAL_DISCOUNT_LIST_PATH,
-  PROVISIONAL_SHOP_LIST_PATH,
+  DISCOUNT_LIST_PATH,
+  SHOP_LIST_PATH,
 } from '../src/api/workersApi.ts'
 
 const fixedNow = new Date('2026-11-05T03:00:00Z')
 
-test('provisional list paths stay on the Issue #42 candidates', () => {
-  assert.equal(PROVISIONAL_SHOP_LIST_PATH, '/shops')
-  assert.equal(PROVISIONAL_DISCOUNT_LIST_PATH, '/discounts')
+test('list paths use the read API', () => {
+  assert.equal(SHOP_LIST_PATH, '/api/v1/shops')
+  assert.equal(DISCOUNT_LIST_PATH, '/api/v1/discounts')
 })
 
 test('mock mode returns five shops and does not mutate the source', async () => {
@@ -82,7 +82,7 @@ test('api mode loads shops, empty lists, and failures without falling back to mo
   }
 
   await withFetch(async (input) => {
-    assert.equal(requestUrl(input), 'http://127.0.0.1:8787/shops')
+    assert.equal(requestUrl(input), 'http://127.0.0.1:8787/api/v1/shops')
     return jsonResponse({ items: [shop], limit: 20, offset: 0, total: 1 })
   }, async () => {
     const shops = await withEnv(apiEnv, () => getShops())
@@ -293,7 +293,7 @@ test('api mode loads discounts and reports http and shape failures', async () =>
   })
 
   await withFetch(async (input) => {
-    assert.equal(requestUrl(input), 'http://127.0.0.1:8787/discounts')
+    assert.equal(requestUrl(input), 'http://127.0.0.1:8787/api/v1/discounts')
     return jsonResponse({ items: [discount], limit: 20, offset: 0, total: 1 })
   }, async () => {
     const discounts = await withEnv(apiEnv, () => getDiscounts())
@@ -332,6 +332,27 @@ test('api mode loads discounts and reports http and shape failures', async () =>
     })
   }, async () => {
     await assert.rejects(() => withEnv(apiEnv, () => getDiscounts()), ApiResponseShapeError)
+  })
+
+  await withFetch(async () => {
+    return jsonResponse({
+      items: [
+        {
+          id: discount.id,
+          shopId: discount.shopId,
+          subject: null,
+          content: '本文のみ',
+          startsAt: null,
+          endsAt: null,
+        },
+      ],
+    })
+  }, async () => {
+    const discounts = await withEnv(apiEnv, () => getDiscounts())
+    assert.equal(discounts[0]?.subject, null)
+    assert.equal(discounts[0]?.content, '本文のみ')
+    assert.equal('createdAt' in discounts[0]!, false)
+    assert.equal('updatedAt' in discounts[0]!, false)
   })
 })
 

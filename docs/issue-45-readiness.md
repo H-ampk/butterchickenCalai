@@ -2,19 +2,19 @@
 
 この文書は API 仕様でも、D1 のスキーマでもありません。エンドポイント、JSON、エラー形式、テーブル定義は、ここでは決めません。開発責任者との設計検討で採用した読み取り方針は [api-contract.md](api-contract.md) にあります。それは学科長・企業側の承認や、チーム全体の正式レビューの完了ではありません。
 
-[Issue #45](https://github.com/H-ampk/butterchickenCalai/issues/45) の参照 API は、D1 から店舗と割引を返す実装としては未完了です。Workers には 5 本のパスを識別し、クエリを検証し、共通のエラー JSON を返す基盤があります。この基盤は空の一覧を成功として返しません。検証を通過した GET は、暫定的に HTTP 500 `internal_error` を返します。これは正常な空一覧、リソース不在の 404、D1 接続障害の 503 ではなく、第1段階の暫定動作です。完成した API の仕様ではありません。完了条件の「ローカル D1 の店舗と割引が取得できる」は、まだ満たしていません。D1 の migration も未作成です。
+[Issue #45](https://github.com/H-ampk/butterchickenCalai/issues/45) の参照 API は、ローカル D1 から店舗と割引を読む 5 本の GET を Workers に持っています。パスの識別、クエリの検証、公開条件、販売期間、ページング、共通のエラー JSON を使います。空の一覧は HTTP 200 です。バインディング不足と SQL の不具合は HTTP 500 `internal_error`、D1 へ接続できない一時障害は HTTP 503 `service_unavailable` です。リモート D1 と本番デプロイは未了です。書き込み API と認証は、この参照には含めていません。`createdAt` と `updatedAt` を公開 JSON に含めるかは未決定のままです。
 
 ## 依存の状態
 
 | 項目 | 状態 | 根拠 |
 | --- | --- | --- |
-| API のパスと入出力 | 設計検討で採用した方針がある。識別と検証の基盤はある。D1 の読み取りは未完了 | [#42](https://github.com/H-ampk/butterchickenCalai/issues/42) は Open。[api-contract.md](api-contract.md) は `/api/v1` の読み取り 5 本を記録している。フロントの仮パスは `GET /shops` と `GET /discounts` のままで、`/api/v1` ではない |
-| エラーレスポンス | 設計検討で採用した方針がある。共通 JSON の基盤はある | 同じ文書の統一 JSON と、400、404、405、500、503。503 を返す D1 接続処理は、まだ参照 API へ接続していない |
-| D1 のテーブルと列 | 設計検討で表と主な列の方針がある。migration は未作成 | `shops` と `discounts`、TEXT 主キー、外部キー、日時 TEXT、検索列は api-contract.md。座標 NULL のチェック制約、インデックス、migration の配置は [#63](https://github.com/H-ampk/butterchickenCalai/issues/63)。[database/README.md](../database/README.md) は検討中の記述のまま |
-| Workers と D1 のバインディング | ローカルの接続確認のみ | [#43](https://github.com/H-ampk/butterchickenCalai/issues/43)。バインディング名 `DB` はローカル設定。リモートの `database_id` は無い。店舗・割引の読み取りは未実装 |
-| migration | 未実装 | `database/` に SQL は無い。Wrangler migrations を使い、ローカル seed とは分ける、という方針だけが api-contract.md にある |
-| フロントの取得口 | 実装済み。パスは仮 | [#81](https://github.com/H-ampk/butterchickenCalai/pull/81)。`GET /shops` と `GET /discounts` は仮パスであり、設計検討の `/api/v1` ではない |
-| 販売期間の通常一覧 | 境界は設計検討で採用。Workers への適用は未完了 | `startsAt <= now < endsAt`。`endsAt` ちょうどは終了。`startsAt` の NULL は開始制限なし。終了後に行を残して通常一覧から外すことは、以前からの方針。比較の実装は [#50](https://github.com/H-ampk/butterchickenCalai/issues/50)。現行の `classifyDiscountForNormalList` は、その境界の一部を未決定のままにしている |
+| API のパスと入出力 | 設計検討で採用した 5 本を Workers が読む。正式な承認は未完了 | [#42](https://github.com/H-ampk/butterchickenCalai/issues/42) は Open。[api-contract.md](api-contract.md) が正本。フロントの一覧は `GET /api/v1/shops` と `GET /api/v1/discounts` |
+| エラーレスポンス | 参照 API が 400、404、405、500、503 を返す | 本文は `error.code` と `error.message`。500 と 503 は分けている |
+| D1 のテーブルと列 | ローカルの migration にある。リモート D1 は未作成 | `workers/migrations/0001_initial.sql`。座標 NULL の扱いとインデックスの追加は [#63](https://github.com/H-ampk/butterchickenCalai/issues/63) |
+| Workers と D1 のバインディング | ローカルの `DB` から参照 API が SELECT する | [#43](https://github.com/H-ampk/butterchickenCalai/issues/43)。リモートの `database_id` は無い |
+| migration | ローカルの初期スキーマがある | `workers/migrations/0001_initial.sql`。seed は `workers/seeds/development.sql` |
+| フロントの取得口 | 一覧 2 本を `/api/v1` に合わせた | `getShops()` と `getDiscounts()`。取得失敗時にモックへは戻さない |
+| 販売期間の通常一覧 | 参照 API は `startsAt <= now < endsAt` を使う | `endsAt` ちょうどは終了。`startsAt` の NULL は開始制限なし。終了済みの詳細は HTTP 200。画面への適用は [#50](https://github.com/H-ampk/butterchickenCalai/issues/50)。`classifyDiscountForNormalList` は、その境界の一部を未決定のままにしている |
 
 以前から合意として扱う方針は次です。
 
@@ -28,12 +28,12 @@
 
 ## まだ追加していない項目
 
-設計検討の方針は api-contract.md にあります。#45 の D1 読み取りと #63 の migration は未完了です。Workers にあるのはパスの識別、入力検証、エラー JSON です。次はまだありません。
+設計検討の方針は api-contract.md にあります。参照 API は、候補行を D1 から読んだあと、TypeScript の公開条件で `total` と `items` を決めています。販売期間の除外を SQL の `LIMIT` より先には掛けていません。次はまだありません。
 
-- D1 からの SELECT と、0 件の成功応答、該当 ID なし、読み取り失敗を完成した参照として返す処理
-- バインディング名の変更と migration の適用手順
-- 販売期間の除外 SQL。これは #50 と重なるため、参照の基盤では行わない
-- ローカル D1 の店舗・割引を使う統合テスト
+- リモート D1、本番デプロイ、書き込み API、認証
+- 公開 JSON の `createdAt` と `updatedAt`
+- 販売期間を画面・検索・地図へ適用する処理。主体は #50
+- 一覧が大量になったときの SQL 側の `COUNT` と `LIMIT`
 
 ## 今回置いたコード
 

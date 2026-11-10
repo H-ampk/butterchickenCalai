@@ -1,12 +1,11 @@
 /**
  * Cloudflare Workers への参照通信。
  *
- * パスは Issue #42 で未合意。次の定数は草案の候補であり、確定した仕様ではない。
- * 合意後は定数だけを差し替える。
- * クエリの limit と offset は既定値が未合意のため、ここでは付けない。
+ * パスは api-contract.md の参照 5 本のうち、一覧の 2 本。
+ * limit と offset はサーバーの既定値を使うため、ここでは付けない。
  */
-export const PROVISIONAL_SHOP_LIST_PATH = '/shops'
-export const PROVISIONAL_DISCOUNT_LIST_PATH = '/discounts'
+export const SHOP_LIST_PATH = '/api/v1/shops'
+export const DISCOUNT_LIST_PATH = '/api/v1/discounts'
 
 export type DataSourceMode = 'mock' | 'api'
 

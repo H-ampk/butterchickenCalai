@@ -3,7 +3,7 @@ import { readFetchedOrigin, tagFetchedRecords, type ListOrigin } from './listOri
 import { mockShops } from './mockShops.ts'
 import {
   ApiResponseShapeError,
-  PROVISIONAL_SHOP_LIST_PATH,
+  SHOP_LIST_PATH,
   fetchProvisionalList,
   isRecord,
   resolveDataSource,
@@ -11,7 +11,7 @@ import {
 
 /**
  * 画面はこの関数だけを使う。戻り値はこれまで通り Shop[]。
- * 既定はモック。VITE_DATA_SOURCE=api のときだけ Workers の仮パスへ通信する。
+ * 既定はモック。VITE_DATA_SOURCE=api のときだけ GET /api/v1/shops へ通信する。
  * 通信に失敗してもモックへは切り替えない。
  */
 export async function getShops(): Promise<Shop[]> {
@@ -23,7 +23,7 @@ export async function getShops(): Promise<Shop[]> {
     )
   }
 
-  const items = await fetchProvisionalList(PROVISIONAL_SHOP_LIST_PATH)
+  const items = await fetchProvisionalList(SHOP_LIST_PATH)
   return tagFetchedRecords(items.map((item) => parseShop(item)), 'api')
 }
 
