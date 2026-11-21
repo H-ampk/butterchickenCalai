@@ -1,4 +1,5 @@
 import { normalize, type NormalizeResult } from '@geolonia/normalize-japanese-addresses'
+import { withGuardedAddressFetch } from './addressFetchGuard.ts'
 import type { NormalizedAddress } from './types.ts'
 
 function text(value: string | undefined): string | null {
@@ -50,10 +51,9 @@ function townName(result: NormalizeResult): string | null {
 }
 
 /**
- * 3.1.3 の公開設定には取得関数の差し替えが無い。
- * 住居表示・地番の非2xx本文は、ライブラリが空のCSVとして町字単位にキャッシュし得る。
- * 全体の fetch は差し替えない。
+ * 3.1.3 は応答が成功したかを見ずに住所データをキャッシュする。
+ * 取得のあいだだけ、設定した API への非2xxと長さの違う本文を失敗にする。
  */
 export async function normalizeWithGeolonia(input: string): Promise<NormalizedAddress> {
-  return toNormalizedAddress(await normalize(input))
+  return withGuardedAddressFetch(async () => toNormalizedAddress(await normalize(input)))
 }
