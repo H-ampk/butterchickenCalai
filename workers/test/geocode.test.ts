@@ -186,7 +186,13 @@ test('a timeout is a retryable service error', async () => {
   assert.equal(assessment.acceptedPoint, null)
 })
 
-test('HTTP statuses from the message use 5xx and the listed client errors', () => {
+test('a timeout that mentions 300 ms stays a timeout', () => {
+  const error = new Error('timeout after 300 ms')
+  error.name = 'TimeoutError'
+  assert.deepEqual(describeServiceFailure(error), { kind: 'timeout', retryable: true })
+})
+
+test('HTTP statuses from the confirmed message form keep 5xx and the listed client errors', () => {
   for (const status of [501, 503, 520, 429]) {
     assert.deepEqual(describeServiceFailure(new Error(`取得に失敗しました: ${status}`)), {
       kind: 'upstream',

@@ -49,6 +49,11 @@ function townName(result: NormalizeResult): string | null {
   return `${town.oaza_cho ?? ''}${town.chome ?? ''}${town.koaza ?? ''}`
 }
 
+/**
+ * 3.1.3 の公開設定には取得関数の差し替えが無い。
+ * 住居表示・地番の非2xx本文は、ライブラリが空のCSVとして町字単位にキャッシュし得る。
+ * 全体の fetch は差し替えない。
+ */
 export async function normalizeWithGeolonia(input: string): Promise<NormalizedAddress> {
   return toNormalizedAddress(await normalize(input))
 }
