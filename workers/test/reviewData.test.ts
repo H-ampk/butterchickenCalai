@@ -196,7 +196,7 @@ test('a missing official name is not reported as a mismatch', () => {
   )
 })
 
-test('reasons are left empty when the normalized source was not provided', () => {
+test('an omitted source still keeps reasons that the assessment itself shows', () => {
   const source = normalized({ other: '建物名' })
   const record = buildAddressReview({
     inputAddress,
@@ -204,5 +204,90 @@ test('reasons are left empty when the normalized source was not provided', () =>
   })
   assert.equal(record.status, 'needs_review')
   assert.equal(record.normalized?.other, '建物名')
-  assert.deepEqual(record.reasons, [])
+  assert.deepEqual(
+    record.reasons.map((item) => item.code),
+    ['unresolved_remainder'],
+  )
+})
+
+test('an omitted source keeps a town-representative reason from the reference point', () => {
+  const source = normalized({
+    point: { latitude: 34.556528, longitude: 132.440467, pointLevel: 3 },
+  })
+  const record = buildAddressReview({
+    inputAddress,
+    assessment: classifyNormalizedAddress(source),
+  })
+  assert.deepEqual(
+    record.reasons.map((item) => item.code),
+    ['residential_point_is_town_representative'],
+  )
+})
+
+test('an omitted source does not invent a component mismatch', () => {
+  const source = normalized({ pref: '広島県', prefectureName: '岡山県' })
+  const record = buildAddressReview({
+    inputAddress,
+    assessment: classifyNormalizedAddress(source),
+  })
+  assert.equal(
+    record.reasons.some((item) => item.code === 'component_mismatch'),
+    false,
+  )
+})
+
+test('an in-range point dropped by an unrecognized level stays an invalid address', () => {
+  const source = normalized({
+    town: null,
+    addr: null,
+    level: 2,
+    point: { latitude: 34.386288, longitude: 132.454992, pointLevel: 2 },
+  })
+  const record = buildAddressReview({
+    inputAddress,
+    assessment: classifyNormalizedAddress(source),
+    source,
+  })
+  assert.deepEqual(
+    record.reasons.map((item) => item.code),
+    ['invalid_address'],
+  )
+})
+
+test('a conflicting source does not supply reasons for the assessment', () => {
+  const assessed = normalized()
+  const conflicting = normalized({
+    other: '別住所',
+    point: { latitude: 34.1, longitude: 132.1, pointLevel: 3 },
+  })
+  const record = buildAddressReview({
+    inputAddress,
+    assessment: classifyNormalizedAddress(assessed),
+    source: conflicting,
+  })
+  assert.equal(record.status, 'accepted_candidate')
+  assert.deepEqual(record.acceptedCandidate, {
+    latitude: 34.38552071,
+    longitude: 132.454471652,
+  })
+  assert.deepEqual(
+    record.reasons.map((item) => item.code),
+    ['input_mismatch'],
+  )
+})
+
+test('a service error ignores a conflicting normalized source', async () => {
+  const assessment = await geocodeAddress(inputAddress, async () => {
+    throw new Error('timeout after 300 ms')
+  })
+  const record = buildAddressReview({
+    inputAddress,
+    assessment,
+    source: normalized(),
+  })
+  assert.deepEqual(
+    record.reasons.map((item) => item.code),
+    ['service_error'],
+  )
+  assert.equal(record.acceptedCandidate, null)
 })

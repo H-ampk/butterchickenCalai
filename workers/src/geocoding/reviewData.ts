@@ -24,6 +24,7 @@ export type ReviewReasonCode =
   | 'coordinates_out_of_range'
   | 'point_level_not_residential'
   | 'service_error'
+  | 'input_mismatch'
 
 export type ReviewReason = {
   code: ReviewReasonCode
@@ -85,8 +86,73 @@ function reason(code: ReviewReasonCode, message: string): ReviewReason {
 }
 
 /**
+ * 分類結果だけから言える理由。
+ * 公式名が無いので、構成要素の不一致はここには含めない。
+ */
+export function reviewReasonsFromAssessment(assessment: GeocodeAssessment): ReviewReason[] {
+  if (assessment.status === 'service_error') {
+    const kind = assessment.failure?.kind ?? 'upstream'
+    return [reason('service_error', `外部サービスで住所を変換できませんでした（${kind}）。`)]
+  }
+  const normalized = assessment.normalized
+  if (!normalized) {
+    if (assessment.status === 'invalid_address') {
+      return [reason('invalid_address', '住所が空です。')]
+    }
+    return []
+  }
+
+  const reasons: ReviewReason[] = []
+  const recognized = normalized.level === 3 || normalized.level === 8
+  const pointLevel = normalized.pointLevel
+  const droppedPoint = assessment.acceptedPoint === null && assessment.referencePoint === null
+
+  if (!recognized) {
+    reasons.push(reason('invalid_address', '住所として確定できるレベルまで認識できませんでした。'))
+  }
+  if (recognized && pointLevel !== null && droppedPoint) {
+    reasons.push(reason('coordinates_out_of_range', '座標が緯度・経度の有効範囲外です。'))
+  }
+  if (normalized.level === 3) {
+    reasons.push(reason('town_level_only', '町丁目までしか認識できていません。'))
+  }
+  if (normalized.level === 8 && assessment.referencePoint?.pointLevel === 3) {
+    reasons.push(
+      reason(
+        'residential_point_is_town_representative',
+        '番地まで認識していますが、座標は町字代表点（point.level 3）です。',
+      ),
+    )
+  }
+  const referenceLevel = assessment.referencePoint?.pointLevel
+  if (
+    normalized.level === 8 &&
+    referenceLevel !== undefined &&
+    referenceLevel !== 8 &&
+    referenceLevel !== 3
+  ) {
+    reasons.push(
+      reason(
+        'point_level_not_residential',
+        `点のレベルは ${referenceLevel} です。住居表示の 8 ではありません。`,
+      ),
+    )
+  }
+  if (recognized && pointLevel === null) {
+    reasons.push(reason('missing_point', '座標が取得できていません。'))
+  }
+  if (normalized.other.trim() !== '') {
+    reasons.push(reason('unresolved_remainder', '未解析の文字列が残っています。'))
+  }
+  if (normalized.level === 8 && !normalized.addr?.trim()) {
+    reasons.push(reason('missing_block', '番地が不足しています。'))
+  }
+  return reasons
+}
+
+/**
  * 正規化結果から、観測できる事実だけを理由にする。
- * GeocodeAssessment には県名・市区町村名・町字の公式名が無いので、ここは NormalizedAddress を使う。
+ * 構成要素の不一致は、公式名を持つ NormalizedAddress があるときだけ付ける。
  */
 export function reviewReasonsFromNormalized(source: NormalizedAddress): ReviewReason[] {
   const reasons: ReviewReason[] = []
@@ -134,6 +200,54 @@ export function reviewReasonsFromNormalized(source: NormalizedAddress): ReviewRe
   return reasons
 }
 
+function samePoint(
+  point: ReferencePoint,
+  latitude: number,
+  longitude: number,
+): boolean {
+  return point.latitude === latitude && point.longitude === longitude
+}
+
+/** 分類結果に写った項目と正規化結果が同じか。公式名は分類結果に無いので比較しない。 */
+function sourceMatchesAssessment(source: NormalizedAddress, assessment: GeocodeAssessment): boolean {
+  const normalized = assessment.normalized
+  if (!normalized) {
+    return false
+  }
+  if (
+    source.pref !== normalized.pref ||
+    source.city !== normalized.city ||
+    source.town !== normalized.town ||
+    source.addr !== normalized.addr ||
+    source.other !== normalized.other ||
+    source.level !== normalized.level ||
+    (source.point?.pointLevel ?? null) !== normalized.pointLevel
+  ) {
+    return false
+  }
+  const point = source.point
+  if (assessment.acceptedPoint) {
+    return (
+      assessment.referencePoint === null &&
+      point !== null &&
+      inRange(point) &&
+      samePoint(point, assessment.acceptedPoint.latitude, assessment.acceptedPoint.longitude)
+    )
+  }
+  if (assessment.referencePoint) {
+    return (
+      point !== null &&
+      point.pointLevel === assessment.referencePoint.pointLevel &&
+      samePoint(point, assessment.referencePoint.latitude, assessment.referencePoint.longitude)
+    )
+  }
+  if (point === null || !inRange(point)) {
+    return true
+  }
+  // レベルが 3 でも 8 でもないとき、分類は範囲内の点も参考座標に残さない。
+  return normalized.level !== 3 && normalized.level !== 8
+}
+
 function partsFromAssessment(assessment: GeocodeAssessment): ReviewAddressParts | null {
   if (!assessment.normalized) {
     return null
@@ -151,8 +265,8 @@ function partsFromAssessment(assessment: GeocodeAssessment): ReviewAddressParts 
 
 /**
  * 確認用記録を作る。外部へ通信しない。
- * 分類済みの結果で理由を分けるときは source に、分類前の NormalizedAddress を渡す。
- * source が無い needs_review / invalid_address では、理由を推測して埋めない。
+ * source を省いたときは、分類結果だけから言える理由に限る。
+ * source が分類結果と食い違うときは、どちらの理由も付けず input_mismatch だけを返す。
  */
 export function buildAddressReview(input: {
   inputAddress: string
@@ -163,14 +277,15 @@ export function buildAddressReview(input: {
   const source = input.source ?? null
   let reasons: ReviewReason[]
   if (assessment.status === 'service_error') {
-    const kind = assessment.failure?.kind ?? 'upstream'
-    reasons = [reason('service_error', `外部サービスで住所を変換できませんでした（${kind}）。`)]
-  } else if (assessment.status === 'invalid_address' && assessment.normalized === null) {
-    reasons = [reason('invalid_address', '住所が空です。')]
+    reasons = reviewReasonsFromAssessment(assessment)
+  } else if (source && !sourceMatchesAssessment(source, assessment)) {
+    reasons = [
+      reason('input_mismatch', '分類結果と正規化結果が一致しないため、確認理由を付けていません。'),
+    ]
   } else if (source) {
     reasons = reviewReasonsFromNormalized(source)
   } else {
-    reasons = []
+    reasons = reviewReasonsFromAssessment(assessment)
   }
 
   return {
