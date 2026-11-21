@@ -208,23 +208,28 @@ function samePoint(
   return point.latitude === latitude && point.longitude === longitude
 }
 
-/** 分類結果に写った項目と正規化結果が同じか。公式名は分類結果に無いので比較しない。 */
-function sourceMatchesAssessment(source: NormalizedAddress, assessment: GeocodeAssessment): boolean {
+/** 分類結果に写っている文字列とレベルが同じか。公式名と、破棄された座標は比較しない。 */
+function sharedFieldsMatch(source: NormalizedAddress, assessment: GeocodeAssessment): boolean {
   const normalized = assessment.normalized
   if (!normalized) {
     return false
   }
-  if (
-    source.pref !== normalized.pref ||
-    source.city !== normalized.city ||
-    source.town !== normalized.town ||
-    source.addr !== normalized.addr ||
-    source.other !== normalized.other ||
-    source.level !== normalized.level ||
-    (source.point?.pointLevel ?? null) !== normalized.pointLevel
-  ) {
-    return false
-  }
+  return (
+    source.pref === normalized.pref &&
+    source.city === normalized.city &&
+    source.town === normalized.town &&
+    source.addr === normalized.addr &&
+    source.other === normalized.other &&
+    source.level === normalized.level &&
+    (source.point?.pointLevel ?? null) === normalized.pointLevel
+  )
+}
+
+/**
+ * 分類結果に残っている座標と source の座標が一致するか。
+ * 分類が座標を破棄しているときは、元の緯度経度が残っていないので一致とは見なさない。
+ */
+function retainedPointConfirmed(source: NormalizedAddress, assessment: GeocodeAssessment): boolean {
   const point = source.point
   if (assessment.acceptedPoint) {
     return (
@@ -241,11 +246,7 @@ function sourceMatchesAssessment(source: NormalizedAddress, assessment: GeocodeA
       samePoint(point, assessment.referencePoint.latitude, assessment.referencePoint.longitude)
     )
   }
-  if (point === null || !inRange(point)) {
-    return true
-  }
-  // レベルが 3 でも 8 でもないとき、分類は範囲内の点も参考座標に残さない。
-  return normalized.level !== 3 && normalized.level !== 8
+  return point === null
 }
 
 function partsFromAssessment(assessment: GeocodeAssessment): ReviewAddressParts | null {
@@ -266,7 +267,8 @@ function partsFromAssessment(assessment: GeocodeAssessment): ReviewAddressParts 
 /**
  * 確認用記録を作る。外部へ通信しない。
  * source を省いたときは、分類結果だけから言える理由に限る。
- * source が分類結果と食い違うときは、どちらの理由も付けず input_mismatch だけを返す。
+ * 分類結果に残る項目が食い違うときは input_mismatch だけを返す。
+ * 破棄された座標は分類結果に残らない。その source からは、公式名に依存する理由を付けない。
  */
 export function buildAddressReview(input: {
   inputAddress: string
@@ -278,11 +280,11 @@ export function buildAddressReview(input: {
   let reasons: ReviewReason[]
   if (assessment.status === 'service_error') {
     reasons = reviewReasonsFromAssessment(assessment)
-  } else if (source && !sourceMatchesAssessment(source, assessment)) {
+  } else if (source && !sharedFieldsMatch(source, assessment)) {
     reasons = [
       reason('input_mismatch', '分類結果と正規化結果が一致しないため、確認理由を付けていません。'),
     ]
-  } else if (source) {
+  } else if (source && retainedPointConfirmed(source, assessment)) {
     reasons = reviewReasonsFromNormalized(source)
   } else {
     reasons = reviewReasonsFromAssessment(assessment)

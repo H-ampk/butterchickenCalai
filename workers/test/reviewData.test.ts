@@ -236,6 +236,68 @@ test('an omitted source does not invent a component mismatch', () => {
   )
 })
 
+test('a different discarded level 2 point does not add the other source reasons', () => {
+  const assessed = normalized({
+    town: null,
+    addr: null,
+    level: 2,
+    point: { latitude: 34.386288, longitude: 132.454992, pointLevel: 2 },
+    prefectureName: '広島県',
+  })
+  const other = normalized({
+    town: null,
+    addr: null,
+    level: 2,
+    point: { latitude: 35.5, longitude: 133.2, pointLevel: 2 },
+    prefectureName: '岡山県',
+  })
+  const record = buildAddressReview({
+    inputAddress,
+    assessment: classifyNormalizedAddress(assessed),
+    source: other,
+  })
+  assert.equal(record.acceptedCandidate, null)
+  assert.equal(record.referencePoint, null)
+  assert.deepEqual(
+    record.reasons.map((item) => item.code),
+    ['invalid_address'],
+  )
+})
+
+test('a different out-of-range point does not add the other source reasons', () => {
+  const assessed = normalized({
+    point: { latitude: 91, longitude: 132.45, pointLevel: 8 },
+    prefectureName: '広島県',
+  })
+  const other = normalized({
+    point: { latitude: 92, longitude: 132.45, pointLevel: 8 },
+    prefectureName: '岡山県',
+  })
+  const record = buildAddressReview({
+    inputAddress,
+    assessment: classifyNormalizedAddress(assessed),
+    source: other,
+  })
+  assert.deepEqual(
+    record.reasons.map((item) => item.code),
+    ['coordinates_out_of_range'],
+  )
+})
+
+test('the same retained point still reports a component mismatch', () => {
+  const source = normalized({ prefectureName: '岡山県' })
+  const record = buildAddressReview({
+    inputAddress,
+    assessment: classifyNormalizedAddress(source),
+    source,
+  })
+  assert.equal(record.status, 'needs_review')
+  assert.deepEqual(
+    record.reasons.map((item) => item.code),
+    ['component_mismatch'],
+  )
+})
+
 test('an in-range point dropped by an unrecognized level stays an invalid address', () => {
   const source = normalized({
     town: null,
