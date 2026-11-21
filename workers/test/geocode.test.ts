@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { classifyNormalizedAddress } from '../src/geocoding/classify.ts'
+import { describeServiceFailure } from '../src/geocoding/serviceFailure.ts'
 import { geocodeAddress } from '../src/geocoding/geocodeAddress.ts'
 import { toNormalizedAddress } from '../src/geocoding/geoloniaAdapter.ts'
 import type { NormalizeResult } from '@geolonia/normalize-japanese-addresses'
@@ -183,6 +184,29 @@ test('a timeout is a retryable service error', async () => {
   assert.equal(assessment.status, 'service_error')
   assert.deepEqual(assessment.failure, { kind: 'timeout', retryable: true })
   assert.equal(assessment.acceptedPoint, null)
+})
+
+test('HTTP statuses from the message use 5xx and the listed client errors', () => {
+  for (const status of [501, 503, 520, 429]) {
+    assert.deepEqual(describeServiceFailure(new Error(`取得に失敗しました: ${status}`)), {
+      kind: 'upstream',
+      retryable: true,
+    })
+  }
+  assert.deepEqual(describeServiceFailure(new Error('取得に失敗しました: 404')), {
+    kind: 'upstream',
+    retryable: false,
+  })
+  assert.deepEqual(describeServiceFailure(new Error('住所データが壊れています')), {
+    kind: 'upstream',
+    retryable: false,
+  })
+})
+
+test('a structured HTTP status overrides a different status in the message', () => {
+  const error = new Error('取得に失敗しました: 404')
+  Object.assign(error, { status: 503 })
+  assert.deepEqual(describeServiceFailure(error), { kind: 'upstream', retryable: true })
 })
 
 test('a 404 from the address data is not marked retryable', async () => {

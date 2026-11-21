@@ -40,9 +40,9 @@ export type NormalizedAddress = {
   level: number
   point: ReferencePoint | null
   prefectureName: string | null
-  /** `cityName` が返す郡・市区町村・区を含む名前 */
+  /** 郡・市区町村・区を、ライブラリの `cityName` と同じ順で結合した名前 */
   municipalityName: string | null
-  /** `machiAzaName` が返す町字 */
+  /** 大字・丁目・小字を、ライブラリの `machiAzaName` と同じ順で結合した名前 */
   townName: string | null
 }
 
