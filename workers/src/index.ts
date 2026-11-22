@@ -23,7 +23,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     return handleHealth(request, env.DB)
   }
 
-  const readResponse = respondToReadApi(request)
+  const readResponse = await respondToReadApi(request, { database: env.DB, now: new Date() })
   if (readResponse) {
     return readResponse
   }

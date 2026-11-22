@@ -642,8 +642,8 @@ test('a shop discount list is not_found for an unpublished shop and empty when n
   }
 })
 
-test('pure list results do not replace the provisional internal_error response', async () => {
-  const response = respondToReadApi(new Request('http://127.0.0.1/api/v1/shops?q=%E7%B4%99%E5%B1%8B%E7%94%BA'))
+test('a pure list result is not returned when the database binding is missing', async () => {
+  const response = await respondToReadApi(new Request('http://127.0.0.1/api/v1/shops?q=%E7%B4%99%E5%B1%8B%E7%94%BA'))
   assert.ok(response)
   assert.equal(response.status, 500)
   const body = await response.text()
@@ -655,14 +655,18 @@ test('pure list results do not replace the provisional internal_error response',
   assert.equal(page.items[0]?.name, '紙屋町店')
 })
 
-test('read API modules do not query D1 or read the current time themselves', () => {
+test('visibility modules do not query D1, and only the executor reads the clock', () => {
   const dir = new URL('../src/readApi/', import.meta.url)
   const files = readdirSync(dir).filter((name) => name.endsWith('.ts'))
-  assert.equal(files.length >= 6, true)
+  assert.equal(files.includes('d1Read.ts'), true)
   for (const name of files) {
     const source = readFileSync(new URL(name, dir), 'utf8')
-    assert.equal(/\bSELECT\b|\.prepare\(/.test(source), false, name)
+    if (name !== 'd1Read.ts') {
+      assert.equal(/\bSELECT\b|\.prepare\(/.test(source), false, name)
+    }
     assert.equal(/\bDate\.now\(/.test(source), false, name)
-    assert.equal(/new Date\(\)/.test(source), false, name)
+    if (name !== 'handleReadApi.ts') {
+      assert.equal(/new Date\(\)/.test(source), false, name)
+    }
   }
 })

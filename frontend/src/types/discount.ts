@@ -1,15 +1,15 @@
 /**
- * Issue #42 の草案にある割引。
- * 項目名と、startsAt が null のときの意味は未合意。
- * この型は草案に合わせた暫定であり、合意後に合わせる。
+ * 公開 API の割引。
+ * subject と content は、どちらか一方が trim 後に空でなければ null があり得る。
+ * createdAt と updatedAt を公開するかは未決定のため、必須にはしない。
  */
 export interface Discount {
   id: string
   shopId: string
-  subject: string
-  content: string
+  subject: string | null
+  content: string | null
   startsAt: string | null
   endsAt: string | null
-  createdAt: string
-  updatedAt: string
+  createdAt?: string
+  updatedAt?: string
 }
